@@ -588,7 +588,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func keyUp(with event: NSEvent) {
         switch event.keyCode {
-        case 123, 124: // Left/Right arrows
+        case 123, 124: // Left or Right arrow
             rotationRate = 0
         case 126: // Up arrow
             thrustDirection = 0
@@ -730,6 +730,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Wrap player position
         wrapPlayer()
+        
+        // Handle thrust flames
+        if thrustDirection > 0 {
+            showThrustFlame()
+        } else if thrustDirection < 0 {
+            showReverseFlame()
+        } else {
+            hideThrustFlame()
+            hideReverseFlame()
+        }
+        
+        // Apply thrust in direction ship is pointing
+        if thrustDirection != 0 {
+            let dx = -sin(player.zRotation) * shipThrustSpeed * thrustDirection
+            let dy = cos(player.zRotation) * shipThrustSpeed * thrustDirection
+            player.physicsBody?.applyForce(CGVector(dx: dx, dy: dy))
+        }
+        
+        // Wrap player position
+        wrapPlayer()
     }
     
     // Add these new methods for asteroid splitting
@@ -865,14 +885,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.position = CGPoint(x: frame.midX, y: frame.midY)  // Reset to center
         player.removeFromParent()
         
-        // Decrement lives
-        lives -= 1
-        
-        if lives <= 0 {
+        // Decrement lives AFTER checking for game over
+        if lives <= 1 {  // Changed from lives <= 0
+            lives = 0    // Set to exactly 0
             isGameOver = true
             showMessage("GAME OVER", duration: 3.0)
             // ... rest of game over code ...
         } else {
+            lives -= 1   // Decrement lives only if we're not at game over
             // Try to respawn after a delay if we still have lives
             isRespawning = true
             addChild(player)  // Add back to scene
@@ -984,6 +1004,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
+        // Make sure player exists and is in scene
+        if player.parent == nil {
+            addChild(player)
+        }
+        
         // Always start in middle of screen
         let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
         
@@ -1043,7 +1068,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             ])
             player.run(SKAction.repeat(spawnEffect, count: 3))
         } else {
-            tryRespawn()
+            // Try again after a short delay instead of immediate recursion
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                self?.tryRespawn()
+            }
         }
     }
     
