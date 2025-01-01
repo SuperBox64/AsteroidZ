@@ -150,6 +150,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at top of class with other properties
     private var showDebugInfo: Bool = false  // Set to false by default
     
+    // Add at top of class
+    private var baseSaucerInterval: TimeInterval = 20.0  // Base spawn interval
+    private var minSaucerInterval: TimeInterval = 5.0    // Minimum spawn interval
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -527,7 +531,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.physicsBody = SKPhysicsBody(circleOfRadius: 2.0)
         bullet.physicsBody?.categoryBitMask = bulletCategory
         bullet.physicsBody?.collisionBitMask = 0
-        bullet.physicsBody?.contactTestBitMask = allAsteroidsCategory | saucerCategory
+        bullet.physicsBody?.contactTestBitMask = allAsteroidsCategory | saucerCategory | saucerBulletCategory
         bullet.physicsBody?.affectedByGravity = false
         
         // Set velocity in same direction as ship is pointing
@@ -724,6 +728,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 run(bangMediumSound)
             case .small:
                 run(bangSmallSound)
+                // Add explosion effect for small asteroids
+                createAsteroidExplosion(at: asteroid.position)
             }
             
             // Only award score if awardPoints is true
@@ -747,13 +753,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Determine new size and number of splits
             switch size {
             case .large:
-                // Split into two medium asteroids
                 spawnSplitAsteroids(at: asteroid.position, size: .medium, count: 2)
             case .medium:
-                // Split into two small asteroids
                 spawnSplitAsteroids(at: asteroid.position, size: .small, count: 2)
             case .small:
-                // Small asteroids just disappear
+                // Small asteroids explode and disappear
+                createAsteroidExplosion(at: asteroid.position)
                 return
             }
             
@@ -1111,6 +1116,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 playerDied()
             }
         }
+        
+        // Add check for player bullets hitting saucer bullets
+        if collision == (bulletCategory | saucerBulletCategory) {
+            let bulletPos = contact.bodyA.node?.position ?? contact.bodyB.node?.position ?? .zero
+            
+            // Remove both bullets
+            contact.bodyA.node?.removeFromParent()
+            contact.bodyB.node?.removeFromParent()
+            
+            // Create explosion effect
+            createBulletExplosion(at: bulletPos)
+            
+            // Award points
+            score += 100
+            
+            // Show score message
+            showMessage("+100", duration: 1.0)
+        }
     }
     
     func restartGame() {
@@ -1217,6 +1240,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             beatTimer = newTimer
             RunLoop.current.add(newTimer, forMode: .common)
         }
+        
+        // Add this at the end
+        updateSaucerSpawnRate()
     }
     
     func playNextBeat() {
@@ -1561,5 +1587,92 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         asteroidCountLabel?.isHidden = !showDebugInfo
         beatIntervalLabel?.isHidden = !showDebugInfo
         intervalChangedLabel?.isHidden = !showDebugInfo
+    }
+    
+    // Add bullet explosion effect
+    func createBulletExplosion(at position: CGPoint) {
+        // Create multiple particles
+        for _ in 0...5 {
+            let particle = SKShapeNode(circleOfRadius: 1.0)
+            particle.position = position
+            particle.strokeColor = .white
+            particle.fillColor = .white
+            addChild(particle)
+            
+            // Random direction explosion
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let speed = CGFloat.random(in: 50...100)
+            let dx = cos(angle) * speed
+            let dy = sin(angle) * speed
+            
+            // Animate explosion
+            let move = SKAction.move(by: CGVector(dx: dx, dy: dy), duration: 0.5)
+            let fade = SKAction.fadeOut(withDuration: 0.5)
+            let group = SKAction.group([move, fade])
+            let remove = SKAction.removeFromParent()
+            
+            particle.run(SKAction.sequence([group, remove]))
+        }
+    }
+    
+    func updateSaucerSpawnRate() {
+        // Count small asteroids
+        let smallAsteroidCount = asteroids.filter { asteroid in
+            if let size = asteroid.userData?["size"] as? AsteroidSize {
+                return size == .small
+            }
+            return false
+        }.count
+        
+        // Calculate new interval
+        var newInterval = baseSaucerInterval
+        
+        // Reduce interval based on small asteroid count
+        switch smallAsteroidCount {
+        case 0...4:
+            newInterval = baseSaucerInterval       // 20 seconds
+        case 5...9:
+            newInterval = baseSaucerInterval * 0.8 // 16 seconds
+        case 10...14:
+            newInterval = baseSaucerInterval * 0.6 // 12 seconds
+        case 15...19:
+            newInterval = baseSaucerInterval * 0.4 // 8 seconds
+        default:
+            newInterval = minSaucerInterval        // 5 seconds
+        }
+        
+        // Update timer if it exists
+        if let currentTimer = saucerTimer {
+            currentTimer.invalidate()
+            saucerTimer = Timer.scheduledTimer(withTimeInterval: newInterval, repeats: true) { [weak self] _ in
+                self?.spawnSaucer()
+            }
+        }
+    }
+    
+    // Add new explosion effect for asteroids
+    func createAsteroidExplosion(at position: CGPoint) {
+        // Create more particles for a bigger explosion
+        for _ in 0...8 {
+            let particle = SKShapeNode(circleOfRadius: 1.5)
+            particle.position = position
+            particle.strokeColor = .white
+            particle.fillColor = .white
+            addChild(particle)
+            
+            // Random direction with faster speed
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            let speed = CGFloat.random(in: 100...200)  // Faster than bullet explosion
+            let dx = cos(angle) * speed
+            let dy = sin(angle) * speed
+            
+            // Longer animation
+            let move = SKAction.move(by: CGVector(dx: dx, dy: dy), duration: 0.7)
+            let fade = SKAction.fadeOut(withDuration: 0.7)
+            let group = SKAction.group([move, fade])
+            let remove = SKAction.removeFromParent()
+            
+            particle.run(SKAction.sequence([group, remove]))
+        }
     }
 }
