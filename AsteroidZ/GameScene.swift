@@ -1579,46 +1579,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func showThrustFlame() {
-        // Create flicker animation
-        let flicker = SKAction.sequence([
-            SKAction.fadeOut(withDuration: 0.1),
-            SKAction.fadeIn(withDuration: 0.1)
-        ])
-        
+        // Simply show the thrust flame
         thrustNode?.isHidden = false
-        thrustNode?.run(SKAction.repeatForever(flicker))
     }
     
     func hideThrustFlame() {
-        thrustNode?.removeAllActions()
+        // Simply hide the thrust flame
         thrustNode?.isHidden = true
     }
     
     func showReverseFlame() {
-        // Keep bottom flame fully visible without animation
+        // Show both flames during reverse thrust
         thrustNode?.isHidden = false
-        thrustNode?.alpha = 1.0  // Ensure bottom flame stays solid
-        
-        // Flicker effect for reverse thrust only
-        let flicker = SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.3, duration: 0.1),
-            SKAction.fadeAlpha(to: 1.0, duration: 0.1)
-        ])
-        
-        // Only animate the reverse flame
         reverseFlameNode?.isHidden = false
-        reverseFlameNode?.run(SKAction.repeatForever(flicker), withKey: "reverseFlicker")
     }
     
     func hideReverseFlame() {
-        // Only hide and stop the reverse (top) flame
-        reverseFlameNode?.removeAction(forKey: "reverseFlicker")
+        // Only hide the reverse flame
         reverseFlameNode?.isHidden = true
-        
-        // If forward thrust is active, make sure bottom flame stays visible
-        if thrustDirection > 0 {
-            thrustNode?.isHidden = false
-        }
     }
     
     // Add this helper function
