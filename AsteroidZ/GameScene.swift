@@ -168,6 +168,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at class level
     private var isFullscreen = true  // Start in fullscreen mode
     
+    // At class level
+    private var titleScreen: SKShapeNode?
+    
     // Add at class level
     private func createPlayerShip() -> SKShapeNode {
         let path = CGMutablePath()
@@ -403,6 +406,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Add level label
         setupLevelLabel()
+        
+        showTitleScreen()
     }
     
     func setupLevelLabel() {
@@ -732,8 +737,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if let currentPlayer = player {
             currentPlayer.position.x += velocity.dx
             currentPlayer.position.y += velocity.dy
-            
-            // Screen wrapping
+        
+        // Screen wrapping
             if currentPlayer.position.x > frame.maxX {
                 currentPlayer.position.x = frame.minX
             } else if currentPlayer.position.x < frame.minX {
@@ -991,8 +996,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             isGameOver = true
             showMessage("GAME OVER", duration: 3.0)
         } else {
-            lives -= 1
-            isRespawning = true
+        lives -= 1
+        isRespawning = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.tryRespawn()
             }
@@ -1113,7 +1118,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Check distance to all asteroids
         for asteroid in asteroids {
-            let distance = hypot(asteroid.position.x - centerPoint.x,
+            let distance = hypot(asteroid.position.x - centerPoint.x, 
                                asteroid.position.y - centerPoint.y)
             if distance < safeRadius {
                 areaIsSafe = false
@@ -1251,7 +1256,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         ]))
     }
-  
+    
     // Add contact delegate method
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
@@ -1286,10 +1291,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
                 // Check if it's an asteroid
                 else if let _ = targetNode.userData?["size"] as? AsteroidSize {
-                    splitAsteroid(targetNode)
+                        splitAsteroid(targetNode)
+                    }
                 }
-            }
-            
+                
             // Remove the bullet
             bullet?.removeFromParent()
         }
@@ -1807,16 +1812,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         } else if text.contains("EXTRA SHIP") {
             let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             messageLabel.text = text.uppercased()
-            messageLabel.fontSize = 20
+        messageLabel.fontSize = 20
             messageLabel.alpha = 0.5    // 50% opacity
             messageLabel.position = CGPoint(x: frame.maxX - 100, y: 50)  // Bottom right
-            messageLabel.horizontalAlignmentMode = .right
-            addChild(messageLabel)
-            
-            // Animate and remove
-            let wait = SKAction.wait(forDuration: duration)
+        messageLabel.horizontalAlignmentMode = .right
+        addChild(messageLabel)
+        
+        // Animate and remove
+        let wait = SKAction.wait(forDuration: duration)
             let fade = SKAction.fadeOut(withDuration: 0.3)
-            let remove = SKAction.removeFromParent()
+        let remove = SKAction.removeFromParent()
             messageLabel.run(SKAction.sequence([wait, fade, remove]))
         }
     }
@@ -2031,5 +2036,199 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Try to respawn player safely
         tryRespawn()
+    }
+    
+    func showTitleScreen() {
+        // Create container for all title lines
+        titleScreen = SKShapeNode()
+        
+        // Vector paths for each letter using straight lines
+        let letters: [(path: CGMutablePath, position: CGPoint)] = [
+            createLetterA(at: CGPoint(x: -350, y: 0)),
+            createLetterS(at: CGPoint(x: -250, y: 0)),
+            createLetterT(at: CGPoint(x: -150, y: 0)),
+            createLetterE(at: CGPoint(x: -50, y: 0)),
+            createLetterR(at: CGPoint(x: 50, y: 0)),
+            createLetterO(at: CGPoint(x: 150, y: 0)),
+            createLetterI(at: CGPoint(x: 250, y: 0)),
+            createLetterD(at: CGPoint(x: 300, y: 0)),
+            createLetterZ(at: CGPoint(x: 400, y: 0))
+        ]
+        
+        // Create and add each letter
+        for (path, position) in letters {
+            let letter = SKShapeNode(path: path)
+            letter.strokeColor = .white
+            letter.lineWidth = 2.0
+            letter.position = position
+            titleScreen?.addChild(letter)
+        }
+        
+        // Position title screen
+        titleScreen?.position = CGPoint(x: frame.midX, y: frame.midY)
+        if let titleScreen = titleScreen {
+            addChild(titleScreen)
+        }
+        
+        // Glow animation
+        let glow = SKAction.sequence([
+            // Show title for 3 seconds with glow effect
+            SKAction.customAction(withDuration: 3.0) { node, time in
+                let progress = time / 3.0
+                let alpha = 0.5 + sin(progress * .pi * 2) * 0.5
+                node.alpha = alpha
+            },
+            // Fade out
+            SKAction.fadeOut(withDuration: 0.5),
+            // Remove title screen
+            SKAction.run { [weak self] in
+                self?.titleScreen?.removeFromParent()
+            },
+            // Longer pause before starting game (3 seconds)
+            SKAction.wait(forDuration: 3.0),
+            // Start game and spawn ship
+            SKAction.run { [weak self] in
+                self?.startGame()
+                
+                // Add spawn effect for player
+                if let player = self?.player {
+                    let spawnEffect = SKAction.sequence([
+                        SKAction.fadeAlpha(to: 0.2, duration: 0.2),
+                        SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+                    ])
+                    player.run(SKAction.repeat(spawnEffect, count: 3))
+                }
+            }
+        ])
+        
+        titleScreen?.run(glow)
+    }
+    
+    // Helper functions to create letter paths
+    private func createLetterA(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.move(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.move(to: CGPoint(x: -15, y: 0))
+        path.addLine(to: CGPoint(x: 15, y: 0))
+        return (path, pos)
+    }
+    
+    private func createLetterS(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterT(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.move(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterE(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.move(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 15, y: 0))
+        return (path, pos)
+    }
+    
+    private func createLetterR(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.move(to: CGPoint(x: -10, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterO(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        return (path, pos)
+    }
+    
+    private func createLetterI(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterD(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 15, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 25))
+        path.addLine(to: CGPoint(x: 25, y: -25))
+        path.addLine(to: CGPoint(x: 15, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterZ(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+    
+    private func startGame() {
+        // Reset game state
+        score = 0
+        lives = 5
+        level = 1
+        isGameOver = false
+        
+        // Clear any existing asteroids
+        asteroids.forEach { $0.removeFromParent() }
+        asteroids.removeAll()
+        
+        // Create player if needed
+        if player == nil {
+            player = createPlayerShip()
+            addChild(player!)
+        }
+        
+        // Reset player position
+        player?.position = CGPoint(x: frame.midX, y: frame.midY)
+        player?.isHidden = false
+        
+        // Recreate flame effects
+        recreateFlameEffects()
+        
+        // Spawn initial asteroids for level 1
+        for _ in 0..<10 {
+            spawnAsteroid(size: .large)
+        }
+        
+        // Start background beats
+        beatInterval = maxBeatInterval
+        startBackgroundBeats()
     }
 }
