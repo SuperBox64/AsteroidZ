@@ -165,6 +165,31 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private var levelLabel: SKLabelNode!
     
+    // Add at class level
+    private func createPlayerShip() -> SKShapeNode {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 20))    // Top point
+        path.addLine(to: CGPoint(x: -15, y: -20)) // Bottom left
+        path.addLine(to: CGPoint(x: 15, y: -20))  // Bottom right
+        path.closeSubpath()
+        
+        let ship = SKShapeNode(path: path)
+        ship.strokeColor = .white
+        ship.lineWidth = 2.0
+        ship.fillColor = .black
+        
+        // Setup physics body
+        ship.physicsBody = SKPhysicsBody(polygonFrom: path)
+        ship.physicsBody?.categoryBitMask = shipCategory
+        ship.physicsBody?.contactTestBitMask = asterCategory | roidCategory | saucerCategory | saucerBulletCategory
+        ship.physicsBody?.collisionBitMask = 0
+        ship.physicsBody?.affectedByGravity = false
+        ship.physicsBody?.isDynamic = true
+        ship.physicsBody?.usesPreciseCollisionDetection = true
+        
+        return ship
+    }
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -625,16 +650,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func update(_ currentTime: TimeInterval) {
         // Move rotation update to the start and ensure it always happens
-        if rotationRate != 0 {
-            player.zRotation += rotationRate * CGFloat(0.05)
+        if let currentPlayer = player, rotationRate != 0 {
+            currentPlayer.zRotation += rotationRate * CGFloat(0.05)
         }
         
         // Apply thrust and play sound
-        if thrustDirection != 0 {
-            let angle = player.zRotation
+        if let currentPlayer = player, thrustDirection != 0 {
+            let angle = currentPlayer.zRotation
             let dx = -sin(angle) * shipThrustSpeed * thrustDirection
             let dy = cos(angle) * shipThrustSpeed * thrustDirection
-            player.physicsBody?.applyForce(CGVector(dx: dx, dy: dy))
+            currentPlayer.physicsBody?.applyForce(CGVector(dx: dx, dy: dy))
             
             // Show thrust visual
             thrustNode?.isHidden = false
@@ -642,7 +667,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Play thrust sound in spurts
             if action(forKey: "thrustSound") == nil {
                 let playSound = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
-                let wait = SKAction.wait(forDuration: 0.1)  // Short pause between sounds
+                let wait = SKAction.wait(forDuration: 0.1)
                 let sequence = SKAction.sequence([playSound, wait])
                 run(sequence, withKey: "thrustSound")
             }
@@ -653,20 +678,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         // Update position
-        player.position.x += velocity.dx
-        player.position.y += velocity.dy
-        
-        // Screen wrapping
-        if player.position.x > frame.maxX {
-            player.position.x = frame.minX
-        } else if player.position.x < frame.minX {
-            player.position.x = frame.maxX
-        }
-        
-        if player.position.y > frame.maxY {
-            player.position.y = frame.minY
-        } else if player.position.y < frame.minY {
-            player.position.y = frame.maxY
+        if let currentPlayer = player {
+            currentPlayer.position.x += velocity.dx
+            currentPlayer.position.y += velocity.dy
+            
+            // Screen wrapping
+            if currentPlayer.position.x > frame.maxX {
+                currentPlayer.position.x = frame.minX
+            } else if currentPlayer.position.x < frame.minX {
+                currentPlayer.position.x = frame.maxX
+            }
+            
+            if currentPlayer.position.y > frame.maxY {
+                currentPlayer.position.y = frame.minY
+            } else if currentPlayer.position.y < frame.minY {
+                currentPlayer.position.y = frame.maxY
+            }
         }
         
         // Apply friction
@@ -764,10 +791,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         // Apply thrust in direction ship is pointing
-        if thrustDirection != 0 {
-            let dx = -sin(player.zRotation) * shipThrustSpeed * thrustDirection
-            let dy = cos(player.zRotation) * shipThrustSpeed * thrustDirection
-            player.physicsBody?.applyForce(CGVector(dx: dx, dy: dy))
+        if let currentPlayer = player, thrustDirection != 0 {
+            let dx = -sin(currentPlayer.zRotation) * shipThrustSpeed * thrustDirection
+            let dy = cos(currentPlayer.zRotation) * shipThrustSpeed * thrustDirection
+            currentPlayer.physicsBody?.applyForce(CGVector(dx: dx, dy: dy))
         }
         
         // Wrap player position
@@ -896,28 +923,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add player death handling
     func playerDied() {
-        // Play explosion sound
         run(bangMediumSound)
         
-        // Stop saucer sound only
+        // Stop any existing sounds
         saucerSound?.removeFromParent()
         
-        // Create ship destruction animation
+        // Create ship destruction animation at current position
         createShipDestructionAnimation()
         
-        // Hide player and flames
-        player.isHidden = true
-        thrustNode?.isHidden = true
-        reverseFlameNode?.isHidden = true
-        player.position = CGPoint(x: frame.midX, y: frame.midY)
+        // Remove the player completely
+        player.removeFromParent()
+        player = nil
         
-        // Decrement lives AFTER checking for game over
         if lives <= 1 {
             lives = 0
             isGameOver = true
-            // Disable ship collisions during game over
-            player.physicsBody?.categoryBitMask = 0
-            player.physicsBody?.contactTestBitMask = 0
             showMessage("GAME OVER", duration: 3.0)
         } else {
             lives -= 1
@@ -1029,7 +1049,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
-        // Always start in middle of screen
+        // Create new player ship if needed
+        if player == nil {
+            player = createPlayerShip()
+        }
+        
         let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
         
         // Check if center area is clear
@@ -1038,7 +1062,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Check distance to all asteroids
         for asteroid in asteroids {
-            let distance = hypot(asteroid.position.x - centerPoint.x, 
+            let distance = hypot(asteroid.position.x - centerPoint.x,
                                asteroid.position.y - centerPoint.y)
             if distance < safeRadius {
                 areaIsSafe = false
@@ -1056,24 +1080,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         if areaIsSafe {
-            // Enable controls immediately
+            // Add player to scene if not already there
+            if player?.parent == nil {
+                addChild(player!)
+            }
+            
+            // Reset position and physics
+            player?.position = centerPoint
+            player?.isHidden = false
+            player?.alpha = 0.2  // Start faded for throb effect
+            player?.physicsBody?.velocity = .zero
+            player?.physicsBody?.angularVelocity = 0
+            
+            // Recreate flame effects
+            recreateFlameEffects()
+            
             isRespawning = false
             
-            // Show player
-            player.isHidden = false
-            player.position = centerPoint
-            player.alpha = 1.0
-            
-            // Reset physics for immediate control
-            player.physicsBody?.velocity = .zero
-            player.physicsBody?.angularVelocity = 0
-            
-            // Play reversed thrust sound at 25% volume
+            // Play reversed thrust sound at 50% volume
             if let thrustSound = SKAudioNode(fileNamed: "thrust.wav") {
                 thrustSound.autoplayLooped = false
-                thrustSound.run(SKAction.changeVolume(to: 0.25, duration: 0))
+                thrustSound.run(SKAction.changeVolume(to: 0.5, duration: 0))
                 
-                // Create reversed playback
                 let reverse = SKAction.sequence([
                     SKAction.play(),
                     SKAction.changePlaybackRate(to: -1.0, duration: 0)
@@ -1082,18 +1110,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 thrustSound.run(reverse)
                 addChild(thrustSound)
                 
-                // Remove sound node after playing
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     thrustSound.removeFromParent()
                 }
             }
             
-            // Show spawn effect
-            let spawnEffect = SKAction.sequence([
-                SKAction.fadeAlpha(to: 0.2, duration: 0.2),
-                SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-            ])
-            player.run(SKAction.repeat(spawnEffect, count: 3))
+            // Add throb effect
+            if let currentPlayer = player {
+                let throb = SKAction.sequence([
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
+                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
+                ])
+                
+                // Create sequence: 3 throbs followed by final fade to full opacity
+                let throbSequence = SKAction.sequence([
+                    SKAction.repeat(throb, count: 3),
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)  // Final fade to full opacity
+                ])
+                
+                currentPlayer.run(throbSequence)
+            }
         } else {
             // Try again after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
@@ -1843,18 +1879,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func wrapPlayer() {
+        guard let currentPlayer = player else { return }
+        
         // Wrap horizontally
-        if player.position.x < 0 {
-            player.position.x = frame.maxX
-        } else if player.position.x > frame.maxX {
-            player.position.x = 0
+        if currentPlayer.position.x < 0 {
+            currentPlayer.position.x = frame.maxX
+        } else if currentPlayer.position.x > frame.maxX {
+            currentPlayer.position.x = 0
         }
         
         // Wrap vertically
-        if player.position.y < 0 {
-            player.position.y = frame.maxY
-        } else if player.position.y > frame.maxY {
-            player.position.y = 0
+        if currentPlayer.position.y < 0 {
+            currentPlayer.position.y = frame.maxY
+        } else if currentPlayer.position.y > frame.maxY {
+            currentPlayer.position.y = 0
         }
     }
     
