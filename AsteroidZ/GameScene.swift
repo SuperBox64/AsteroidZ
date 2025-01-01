@@ -154,6 +154,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var baseSaucerInterval: TimeInterval = 20.0  // Base spawn interval
     private var minSaucerInterval: TimeInterval = 5.0    // Minimum spawn interval
     
+    // Add at class level
+    private var gameOverLabels: [SKLabelNode] = []
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -237,14 +240,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.lineWidth = 2.0
         player.fillColor = .black
         
-        // Create a SOLID physics body for the ship, not an edge-based one
-        player.physicsBody = SKPhysicsBody(polygonFrom: path)  // Changed from edgeLoopFrom
+        // Update physics body settings for player
+        player.physicsBody = SKPhysicsBody(polygonFrom: path)
         player.physicsBody?.categoryBitMask = shipCategory
-        player.physicsBody?.contactTestBitMask = allAsteroidsCategory
-        player.physicsBody?.collisionBitMask = 0
+        player.physicsBody?.contactTestBitMask = asterCategory | roidCategory | saucerCategory | saucerBulletCategory  // Test ALL asteroid types
+        player.physicsBody?.collisionBitMask = 0  // Don't physically collide, just detect contact
         player.physicsBody?.affectedByGravity = false
         player.physicsBody?.isDynamic = true
-        player.physicsBody?.usesPreciseCollisionDetection = true  // Add this for better collision detection
+        player.physicsBody?.usesPreciseCollisionDetection = true
         
         player.alpha = 0  // Start completely invisible
         player.isHidden = true  // Hide it completely
@@ -553,6 +556,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func keyDown(with event: NSEvent) {
+        if isGameOver {
+            // Only allow spacebar during game over
+            if event.keyCode == 49 { // Spacebar
+                restartGame()
+            }
+            return  // Ignore all other inputs during game over
+        }
+        
+        // Normal game controls when not game over
         switch event.keyCode {
         case 123: // Left arrow
             rotationRate = 2.0
@@ -562,24 +574,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             thrustDirection = 1.0
             showThrustFlame()
         case 125: // Down arrow
-            thrustDirection = -0.5  // Half strength of forward thrust
-            showReverseFlame()  // Show reverse thrust flame
+            thrustDirection = -0.5
+            showReverseFlame()
         case 49: // Spacebar
             let currentTime = CACurrentMediaTime()
             if currentTime - lastFireTime >= fireRate {
                 lastFireTime = currentTime
                 fireBullet()
             }
-        case 8: // 'C' key
-            if isGameOver {
-                restartGame()
-            }
         default:
             break
-        }
-        
-        if isGameOver && event.keyCode == 8 { // 8 is 'C' key
-            restartGame()
         }
     }
     
@@ -881,14 +885,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.isHidden = true
         thrustNode?.isHidden = true
         reverseFlameNode?.isHidden = true
-        player.position = CGPoint(x: frame.midX, y: frame.midY)  // Reset to center
+        player.position = CGPoint(x: frame.midX, y: frame.midY)
         
         // Decrement lives AFTER checking for game over
         if lives <= 1 {
             lives = 0
             isGameOver = true
+            // Disable ship collisions during game over
+            player.physicsBody?.categoryBitMask = 0
+            player.physicsBody?.contactTestBitMask = 0
             showMessage("GAME OVER", duration: 3.0)
-            // ... rest of game over code ...
         } else {
             lives -= 1
             isRespawning = true
@@ -1170,18 +1176,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func restartGame() {
-        // Remove game over labels
-        childNode(withName: "gameOverLabel")?.removeFromParent()
-        childNode(withName: "restartLabel")?.removeFromParent()
+        // Remove game over messages
+        for label in gameOverLabels {
+            label.removeFromParent()
+        }
+        gameOverLabels.removeAll()
+        
+        // Reset game state
+        isGameOver = false
+        score = 0
+        lives = 5
         
         // Remove all existing asteroids
         asteroids.forEach { $0.removeFromParent() }
         asteroids.removeAll()
-        
-        // Reset game state
-        lives = 5
-        score = 0
-        isGameOver = false
         
         // Spawn new asteroids
         for _ in 0..<10 {
@@ -1621,22 +1629,40 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add this helper function
     func showMessage(_ text: String, duration: TimeInterval = 2.0) {
-        // Only show GAME OVER and EXTRA SHIP messages
-        if text.contains("GAME OVER") || text.contains("EXTRA SHIP") {
+        if text.contains("GAME OVER") {
+            // Main GAME OVER message
             let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-            messageLabel.text = text.uppercased()  // Force uppercase
+            messageLabel.text = text.uppercased()
+            messageLabel.fontSize = 40
+            messageLabel.alpha = 0.5
+            messageLabel.position = CGPoint(x: frame.midX, y: frame.midY + 30)
+            messageLabel.horizontalAlignmentMode = .center
+            addChild(messageLabel)
+            gameOverLabels.append(messageLabel)  // Track this label
+            
+            // Press Spacebar to Play message
+            let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+            promptLabel.text = "Press Spacebar to Play"
+            promptLabel.fontSize = 20
+            promptLabel.alpha = 0.5
+            promptLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
+            promptLabel.horizontalAlignmentMode = .center
+            addChild(promptLabel)
+            gameOverLabels.append(promptLabel)  // Track this label
+        } else if text.contains("EXTRA SHIP") {
+            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+            messageLabel.text = text.uppercased()
             messageLabel.fontSize = 20
-            messageLabel.alpha = 0.5  // 50% opacity
+            messageLabel.alpha = 0.5    // 50% opacity
             messageLabel.position = CGPoint(x: frame.maxX - 100, y: 50)  // Bottom right
             messageLabel.horizontalAlignmentMode = .right
             addChild(messageLabel)
             
             // Animate and remove
-            let fadeIn = SKAction.fadeIn(withDuration: 0.3)
             let wait = SKAction.wait(forDuration: duration)
-            let fadeOut = SKAction.fadeOut(withDuration: 0.3)
+            let fade = SKAction.fadeOut(withDuration: 0.3)
             let remove = SKAction.removeFromParent()
-            messageLabel.run(SKAction.sequence([fadeIn, wait, fadeOut, remove]))
+            messageLabel.run(SKAction.sequence([wait, fade, remove]))
         }
     }
     
