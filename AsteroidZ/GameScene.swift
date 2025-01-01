@@ -727,6 +727,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Update beat tempo every frame to catch all asteroid count changes
         updateBeatTempo()
+        
+        // Wrap player position
+        wrapPlayer()
     }
     
     // Add these new methods for asteroid splitting
@@ -848,28 +851,87 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add player death handling
     func playerDied() {
-        // Play correct explosion sound
+        // Play explosion sound
         run(bangMediumSound)
         
-        // Create ship break-apart animation
+        // Stop any existing sounds
+        thrustNode?.removeFromParent()
+        saucerSound?.removeFromParent()
+        
+        // Create ship destruction animation
         createShipDestructionAnimation()
         
-        lives -= 1
-        player.isHidden = true
-        isRespawning = true
+        // Reset ship position and hide it
+        player.position = CGPoint(x: frame.midX, y: frame.midY)  // Reset to center
+        player.removeFromParent()
         
-        if lives > 0 {
-            let waitAction = SKAction.wait(forDuration: 2.0)
-            run(waitAction) { [weak self] in
+        // Decrement lives
+        lives -= 1
+        
+        if lives <= 0 {
+            isGameOver = true
+            showMessage("GAME OVER", duration: 3.0)
+            // ... rest of game over code ...
+        } else {
+            // Try to respawn after a delay if we still have lives
+            isRespawning = true
+            addChild(player)  // Add back to scene
+            player.isHidden = true  // Keep hidden until respawn
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.tryRespawn()
             }
-        } else {
-            // Wait 2 seconds then show game over
-            let waitAction = SKAction.wait(forDuration: 2.0)
-            run(waitAction) { [weak self] in
-                self?.showGameOver()
-            }
         }
+    }
+    
+    func createShipDestructionAnimation() {
+        // Create the three lines that make up the ship's shape
+        let topLine = SKShapeNode()
+        let leftLine = SKShapeNode()
+        let rightLine = SKShapeNode()
+        
+        // Draw the lines
+        let topPath = CGMutablePath()
+        topPath.move(to: CGPoint(x: 0, y: 20))
+        topPath.addLine(to: CGPoint(x: 0, y: 0))
+        topLine.path = topPath
+        
+        let leftPath = CGMutablePath()
+        leftPath.move(to: CGPoint(x: 0, y: 0))
+        leftPath.addLine(to: CGPoint(x: -15, y: -20))
+        leftLine.path = leftPath
+        
+        let rightPath = CGMutablePath()
+        rightPath.move(to: CGPoint(x: 0, y: 0))
+        rightPath.addLine(to: CGPoint(x: 15, y: -20))
+        rightLine.path = rightPath
+        
+        // Set line properties
+        [topLine, leftLine, rightLine].forEach {
+            $0.strokeColor = .white
+            $0.lineWidth = 2.0
+            $0.position = player.position
+            $0.zRotation = player.zRotation
+            addChild($0)
+        }
+        
+        // Animate the pieces
+        let duration = 1.0
+        let fadeOut = SKAction.fadeOut(withDuration: duration)
+        let moveTop = SKAction.moveBy(x: 0, y: 20, duration: duration)
+        let moveLeft = SKAction.moveBy(x: -20, y: -20, duration: duration)
+        let moveRight = SKAction.moveBy(x: 20, y: -20, duration: duration)
+        let spin = SKAction.rotate(byAngle: .pi * 2, duration: duration)
+        
+        topLine.run(SKAction.group([fadeOut, moveTop, spin]))
+        leftLine.run(SKAction.group([fadeOut, moveLeft, spin]))
+        rightLine.run(SKAction.group([fadeOut, moveRight, spin]))
+        
+        // Remove the lines after animation
+        let wait = SKAction.wait(forDuration: duration)
+        let remove = SKAction.run {
+            [topLine, leftLine, rightLine].forEach { $0.removeFromParent() }
+        }
+        run(SKAction.sequence([wait, remove]))
     }
     
     func showGameOver() {
@@ -952,7 +1014,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Enable controls immediately
             isRespawning = false
             
-            // Position ship in center and make it ready immediately
+            // Force ship to center of screen
             player.position = centerPoint
             player.isHidden = false
             player.alpha = 1.0
@@ -961,6 +1023,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             player.physicsBody?.velocity = .zero
             player.physicsBody?.angularVelocity = 0
             
+            // Play thrust sound for 1.5 seconds
+            let thrustNode = SKAudioNode(fileNamed: "thrust.wav")
+            thrustNode.autoplayLooped = true
+            addChild(thrustNode)
+            
+            // Stop and remove thrust sound after 1.5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                thrustNode.run(SKAction.sequence([
+                    SKAction.stop(),
+                    SKAction.removeFromParent()
+                ]))
+            }
+            
             // Show spawn effect
             let spawnEffect = SKAction.sequence([
                 SKAction.fadeAlpha(to: 0.2, duration: 0.2),
@@ -968,7 +1043,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             ])
             player.run(SKAction.repeat(spawnEffect, count: 3))
         } else {
-            // Try again immediately if area isn't clear
             tryRespawn()
         }
     }
@@ -1007,59 +1081,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         ]))
     }
-    
-    // Add ship destruction animation
-    func createShipDestructionAnimation() {
-        // Create the three lines that make up the ship's shape
-        let topLine = SKShapeNode()
-        let leftLine = SKShapeNode()
-        let rightLine = SKShapeNode()
-        
-        // Draw the lines
-        let topPath = CGMutablePath()
-        topPath.move(to: CGPoint(x: 0, y: 20))
-        topPath.addLine(to: CGPoint(x: 0, y: 0))
-        topLine.path = topPath
-        
-        let leftPath = CGMutablePath()
-        leftPath.move(to: CGPoint(x: 0, y: 0))
-        leftPath.addLine(to: CGPoint(x: -15, y: -20))
-        leftLine.path = leftPath
-        
-        let rightPath = CGMutablePath()
-        rightPath.move(to: CGPoint(x: 0, y: 0))
-        rightPath.addLine(to: CGPoint(x: 15, y: -20))
-        rightLine.path = rightPath
-        
-        // Set line properties
-        [topLine, leftLine, rightLine].forEach {
-            $0.strokeColor = .white
-            $0.lineWidth = 2.0
-            $0.position = player.position
-            $0.zRotation = player.zRotation
-            addChild($0)
-        }
-        
-        // Animate the pieces
-        let duration = 1.0
-        let fadeOut = SKAction.fadeOut(withDuration: duration)
-        let moveTop = SKAction.moveBy(x: 0, y: 20, duration: duration)
-        let moveLeft = SKAction.moveBy(x: -20, y: -20, duration: duration)
-        let moveRight = SKAction.moveBy(x: 20, y: -20, duration: duration)
-        let spin = SKAction.rotate(byAngle: .pi * 2, duration: duration)
-        
-        topLine.run(SKAction.group([fadeOut, moveTop, spin]))
-        leftLine.run(SKAction.group([fadeOut, moveLeft, spin]))
-        rightLine.run(SKAction.group([fadeOut, moveRight, spin]))
-        
-        // Remove the lines after animation
-        let wait = SKAction.wait(forDuration: duration)
-        let remove = SKAction.run {
-            [topLine, leftLine, rightLine].forEach { $0.removeFromParent() }
-        }
-        run(SKAction.sequence([wait, remove]))
-    }
-    
+  
     // Add contact delegate method
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
@@ -1723,5 +1745,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Update high score display
     func updateHighScore() {
         highScoreLabel.text = "HIGH SCORE \(highScore)"
+    }
+    
+    func wrapPlayer() {
+        // Wrap horizontally
+        if player.position.x < 0 {
+            player.position.x = frame.maxX
+        } else if player.position.x > frame.maxX {
+            player.position.x = 0
+        }
+        
+        // Wrap vertically
+        if player.position.y < 0 {
+            player.position.y = frame.maxY
+        } else if player.position.y > frame.maxY {
+            player.position.y = 0
+        }
     }
 }
