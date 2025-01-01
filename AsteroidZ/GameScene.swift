@@ -571,16 +571,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func fireBullet() {
+        guard let currentPlayer = player else { return }  // Exit if no player
+        
         // Create bullet
         let bullet = SKShapeNode(circleOfRadius: 2.0)
         bullet.strokeColor = .white
         bullet.fillColor = .white
         
         // Calculate position at tip of triangle (point facing forward)
-        let tipOffset = CGPoint(x: -sin(player.zRotation) * 20,  // Negative sin for correct x direction
-                               y: cos(player.zRotation) * 20)     // Positive cos for correct y direction
-        bullet.position = CGPoint(x: player.position.x + tipOffset.x,
-                                y: player.position.y + tipOffset.y)
+        let tipOffset = CGPoint(x: -sin(currentPlayer.zRotation) * 20,  // Negative sin for correct x direction
+                               y: cos(currentPlayer.zRotation) * 20)     // Positive cos for correct y direction
+        bullet.position = CGPoint(x: currentPlayer.position.x + tipOffset.x,
+                                y: currentPlayer.position.y + tipOffset.y)
         
         // Play fire sound
         run(fireSound)
@@ -594,11 +596,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Set velocity in same direction as ship is pointing
         let bulletSpeed: CGFloat = 400.0
-        bullet.physicsBody?.velocity = CGVector(dx: -sin(player.zRotation) * bulletSpeed,  // Match direction
-                                              dy: cos(player.zRotation) * bulletSpeed)
+        bullet.physicsBody?.velocity = CGVector(dx: -sin(currentPlayer.zRotation) * bulletSpeed,  // Match direction
+                                              dy: cos(currentPlayer.zRotation) * bulletSpeed)
         
-        bullets.append(bullet)
         addChild(bullet)
+        bullets.append(bullet)
+        
+        // Remove bullet after 2 seconds
+        let waitAction = SKAction.wait(forDuration: 2.0)
+        let removeAction = SKAction.run {
+            bullet.removeFromParent()
+            if let index = self.bullets.firstIndex(of: bullet) {
+                self.bullets.remove(at: index)
+            }
+        }
+        bullet.run(SKAction.sequence([waitAction, removeAction]))
     }
     
     override func keyDown(with event: NSEvent) {
@@ -666,10 +678,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             // Play thrust sound in spurts
             if action(forKey: "thrustSound") == nil {
-                let playSound = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
-                let wait = SKAction.wait(forDuration: 0.1)
-                let sequence = SKAction.sequence([playSound, wait])
-                run(sequence, withKey: "thrustSound")
+                let playSound = SKAction.group([
+                    SKAction.changeVolume(to: 0.5, duration: 0),
+                    SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
+                ])
+                run(playSound)
             }
         } else {
             // Hide thrust visual and stop sound when not thrusting
@@ -1097,23 +1110,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             isRespawning = false
             
-            // Play reversed thrust sound at 50% volume
-            if let thrustSound = SKAudioNode(fileNamed: "thrust.wav") {
-                thrustSound.autoplayLooped = false
-                thrustSound.run(SKAction.changeVolume(to: 0.5, duration: 0))
-                
-                let reverse = SKAction.sequence([
-                    SKAction.play(),
-                    SKAction.changePlaybackRate(to: -1.0, duration: 0)
-                ])
-                
-                thrustSound.run(reverse)
-                addChild(thrustSound)
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    thrustSound.removeFromParent()
-                }
-            }
+            // Play thrust sound at 75% volume using SKAction
+            let playSound = SKAction.group([
+                SKAction.changeVolume(to: 0.5, duration: 0),
+                SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
+            ])
+            run(playSound)
             
             // Add throb effect
             if let currentPlayer = player {
@@ -1126,6 +1128,45 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 let throbSequence = SKAction.sequence([
                     SKAction.repeat(throb, count: 3),
                     SKAction.fadeAlpha(to: 1.0, duration: 0.2)  // Final fade to full opacity
+                ])
+                
+                currentPlayer.run(throbSequence)
+            }
+            
+            // Play thrust sound at 50% volume and reversed
+            let thrustSound = SKAudioNode(fileNamed: "thrust.wav")
+            thrustSound.autoplayLooped = false
+            
+            // Set up reversed playback at 50% volume
+            let setupSound = SKAction.group([
+                SKAction.changeVolume(to: 0.5, duration: 0),
+                SKAction.changePlaybackRate(to: -1.0, duration: 0)  // Full reverse
+            ])
+            
+            let playSoundX = SKAction.sequence([
+                setupSound,
+                SKAction.play()
+            ])
+            
+            thrustSound.run(playSound)
+            addChild(thrustSound)
+            
+            // Remove sound after throb finishes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                thrustSound.removeFromParent()
+            }
+            
+            // Add throb effect
+            if let currentPlayer = player {
+                let throb = SKAction.sequence([
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
+                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
+                ])
+                
+                // Create sequence: 3 throbs followed by final fade to full opacity
+                let throbSequence = SKAction.sequence([
+                    SKAction.repeat(throb, count: 3),
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)
                 ])
                 
                 currentPlayer.run(throbSequence)
@@ -1703,23 +1744,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             messageLabel.text = text.uppercased()
             messageLabel.fontSize = 40
-            messageLabel.alpha = 0.5
+            messageLabel.alpha = 0.75  // 75% opacity for GAME OVER
             messageLabel.position = CGPoint(x: frame.midX, y: frame.midY + 30)
             messageLabel.horizontalAlignmentMode = .center
             addChild(messageLabel)
-            gameOverLabels.append(messageLabel)  // Track this label
+            gameOverLabels.append(messageLabel)
             
             // Press Spacebar to Play message with throbbing animation
             let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             promptLabel.text = "Press Spacebar to Play"
             promptLabel.fontSize = 20
-            promptLabel.alpha = 0.5
+            promptLabel.alpha = 0.5  // Keep spacebar prompt at 50%
             promptLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
             promptLabel.horizontalAlignmentMode = .center
             addChild(promptLabel)
-            gameOverLabels.append(promptLabel)  // Track this label
+            gameOverLabels.append(promptLabel)
             
-            // Add throbbing animation
+            // Add throbbing animation to spacebar prompt
             let throb = SKAction.sequence([
                 SKAction.fadeAlpha(to: 0.2, duration: 1.0),
                 SKAction.fadeAlpha(to: 0.5, duration: 1.0)
