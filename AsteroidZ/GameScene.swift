@@ -142,6 +142,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var fadeInAction: SKAction!
     private var throbAction: SKAction!
     
+    // Add at top of class
+    private var asteroidCountLabel: SKLabelNode!
+    private var beatIntervalLabel: SKLabelNode!
+    private var intervalChangedLabel: SKLabelNode!
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -324,6 +329,25 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.addChild(reverseFlame)
         
         reverseFlameNode = reverseFlame
+        
+        // Add debug labels
+        asteroidCountLabel = SKLabelNode(fontNamed: "Helvetica")
+        asteroidCountLabel.fontSize = 20
+        asteroidCountLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
+        asteroidCountLabel.fontColor = .green
+        addChild(asteroidCountLabel)
+        
+        beatIntervalLabel = SKLabelNode(fontNamed: "Helvetica")
+        beatIntervalLabel.fontSize = 20
+        beatIntervalLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 90)
+        beatIntervalLabel.fontColor = .blue
+        addChild(beatIntervalLabel)
+        
+        intervalChangedLabel = SKLabelNode(fontNamed: "Helvetica")
+        intervalChangedLabel.fontSize = 20
+        intervalChangedLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 120)
+        intervalChangedLabel.fontColor = .red
+        addChild(intervalChangedLabel)
     }
     
     func startSaucerTimer() {
@@ -405,8 +429,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         asteroid.userData?["size"] = size
         
         if isNextAster {
-            asteroid.fillColor = .black  // Aster type
-            asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)  // SOLID physics body
+            asteroid.fillColor = .black     // TEMP: Color Asters red (was .black)
+            asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)
             asteroid.physicsBody?.categoryBitMask = asterCategory
             asteroid.physicsBody?.contactTestBitMask = shipCategory
             asteroid.physicsBody?.collisionBitMask = asterCategory
@@ -419,8 +443,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let rotationSpeed = CGFloat.random(in: -1.0...1.0)  // Reduced rotation speed
             asteroid.physicsBody?.angularVelocity = rotationSpeed
         } else {
-            asteroid.fillColor = .clear  // Roid type
-            asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)  // SOLID physics body
+            asteroid.fillColor = .clear   // TEMP: Color Roids green (was .clear)
+            asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)
             asteroid.physicsBody?.categoryBitMask = roidCategory
             asteroid.physicsBody?.contactTestBitMask = shipCategory
             asteroid.physicsBody?.collisionBitMask = 0
@@ -679,7 +703,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             wrapSaucer(saucer)
         }
         
-        // Update beat tempo based on current asteroid count
+        // Update beat tempo every frame to catch all asteroid count changes
         updateBeatTempo()
     }
     
@@ -752,7 +776,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             newAsteroid.userData?["size"] = size
             
             // Use toggle for exact 50/50 split
-            newAsteroid.fillColor = isNextAster ? .black : .clear
+            newAsteroid.fillColor = isNextAster ? .black : .clear  // TEMP: Color split asteroids
             
             // Create physics body
             newAsteroid.physicsBody = SKPhysicsBody(edgeLoopFrom: newAsteroid.path!)
@@ -1064,7 +1088,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                         }
                     }
                     // Score for hitting asteroids
-                    else if let size = targetNode.userData?["size"] as? AsteroidSize {
+                    else if let _ = targetNode.userData?["size"] as? AsteroidSize {
                         splitAsteroid(targetNode, awardPoints: true)  // Award points for player bullets
                     }
                 }
@@ -1123,53 +1147,69 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         currentBeat = 2
         
         // Create new timer that repeats
-        beatTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
+        let newTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
             self?.playNextBeat()
         }
-        
-        // Make sure timer is added to current run loop
-        RunLoop.current.add(beatTimer!, forMode: .common)
+        beatTimer = newTimer
+        RunLoop.current.add(newTimer, forMode: .common)
     }
     
     func updateBeatTempo() {
-        // Count only small asteroids
-        let smallAsteroidCount = asteroids.filter { asteroid in
-            if let size = asteroid.userData?["size"] as? AsteroidSize {
-                return size == .small
-            }
-            return false
-        }.count
+        // Base count from asteroids
+        var totalCount = asteroids.count
         
-        // Store old interval to check if it changed
+        // Add weighted count for active saucer
+        if let saucer = activeSaucer {
+            // Check saucer size and add appropriate weight
+            if saucer.xScale == 1.0 {  // Large saucer
+                totalCount += 20  // Counts as 10 additional asteroids
+            } else {  // Small saucer
+                totalCount += 40  // Counts as 20 additional asteroids
+            }
+        }
+        
+        // Update asteroid count label (green) - safely
+        asteroidCountLabel?.text = "Asteroids + Saucers: \(totalCount)"
+        
         let oldInterval = beatInterval
         
-        // Update interval based on count
-        switch smallAsteroidCount {
-        case 0...4:
-            beatInterval = 1.0  // Slowest
-        case 5...9:
-            beatInterval = 0.9
+        switch totalCount {
+        case 0...5:
+            beatInterval = 0.4
+        case 4...9:
+            beatInterval = 0.6
         case 10...14:
             beatInterval = 0.8
         case 15...19:
-            beatInterval = 0.7
-        case 20...29:
+            beatInterval = 1.0
+        case 20...24:
+            beatInterval = 0.8
+        case 25...29:
             beatInterval = 0.6
-        case 30...39:
-            beatInterval = 0.5
-        case 40...49:
+        case 30...:
             beatInterval = 0.4
-        default:  // 50 or more
-            beatInterval = 0.3  // Fastest
+        default:
+            beatInterval = 1.0
         }
         
-        // Only update timer if interval changed
+        // Update beat interval label (blue) - safely
+        beatIntervalLabel?.text = String(format: "Beat Interval: %.2f", beatInterval)
+        
+        // Show interval changed message (red) - safely
         if oldInterval != beatInterval {
+            intervalChangedLabel?.text = "Interval Changed!"
+            // Clear the message after 1 second
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.intervalChangedLabel?.text = ""
+            }
+            
+            // Update timer if interval changed - FIXED TIMER CREATION
             beatTimer?.invalidate()
-            beatTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
+            let newTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
                 self?.playNextBeat()
             }
-            RunLoop.current.add(beatTimer!, forMode: .common)
+            beatTimer = newTimer
+            RunLoop.current.add(newTimer, forMode: .common)
         }
     }
     
