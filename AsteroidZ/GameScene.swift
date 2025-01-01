@@ -1579,23 +1579,43 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func showThrustFlame() {
-        // Simply show the thrust flame
+        // Reset alpha and show flame
+        thrustNode?.alpha = 1.0
         thrustNode?.isHidden = false
+        
+        // Animate the thrust flame
+        let flicker = SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.3, duration: 0.1),
+            SKAction.fadeAlpha(to: 1.0, duration: 0.1)
+        ])
+        
+        thrustNode?.run(SKAction.repeatForever(flicker))
     }
     
     func hideThrustFlame() {
-        // Simply hide the thrust flame
+        thrustNode?.removeAllActions()
         thrustNode?.isHidden = true
     }
     
     func showReverseFlame() {
-        // Show both flames during reverse thrust
+        // Reset alpha and show flames
+        thrustNode?.alpha = 1.0
+        reverseFlameNode?.alpha = 1.0
         thrustNode?.isHidden = false
         reverseFlameNode?.isHidden = false
+        
+        // Animate both flames
+        let flicker = SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.3, duration: 0.1),
+            SKAction.fadeAlpha(to: 1.0, duration: 0.1)
+        ])
+        
+        thrustNode?.run(SKAction.repeatForever(flicker))
+        reverseFlameNode?.run(SKAction.repeatForever(flicker))
     }
     
     func hideReverseFlame() {
-        // Only hide the reverse flame
+        reverseFlameNode?.removeAllActions()
         reverseFlameNode?.isHidden = true
     }
     
