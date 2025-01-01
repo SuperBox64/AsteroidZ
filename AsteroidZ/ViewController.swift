@@ -20,11 +20,12 @@ class ViewController: NSViewController {
             let scene = GameScene(size: CGSize(width: 1920, height: 1080))
             scene.scaleMode = .aspectFill
             
-            view.presentScene(scene)
             view.ignoresSiblingOrder = true
-            
-            view.showsFPS = true
-            view.showsNodeCount = true
+            view.isAsynchronous = true
+            view.showsFPS = false
+            view.showsNodeCount = false
+            view.presentScene(scene)
+
         }
     }
 }

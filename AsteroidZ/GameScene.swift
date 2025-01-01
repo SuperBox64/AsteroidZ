@@ -28,7 +28,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     private var score: Int = 0 {
         didSet {
-            scoreLabel.text = "Score: \(score)"
+            scoreLabel.text = "SCORE \(score)"
             
             // Check for extra ship bonus
             if score >= lastExtraShipScore + extraShipBonus {
@@ -45,12 +45,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private var lives: Int = 5 {
         didSet {
-            livesLabel.text = "Lives: \(lives)"
+            livesLabel.text = "LIVES \(lives)"
         }
     }
     private var highScore: Int = UserDefaults.standard.integer(forKey: "highScore") {
         didSet {
-            highScoreLabel.text = "High Score: \(highScore)"
+            highScoreLabel.text = "HIGH SCORE \(highScore)"
         }
     }
     
@@ -255,28 +255,31 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             spawnAsteroid(size: .large)
         }
         
-        // Add score label
-        scoreLabel = SKLabelNode(fontNamed: "Helvetica")
-        scoreLabel.text = "Score: 0"
+        // Add score label with Avenir font
+        scoreLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+        scoreLabel.text = "SCORE 0"
         scoreLabel.fontSize = 20
         scoreLabel.position = CGPoint(x: 70, y: frame.maxY - 30)
         scoreLabel.horizontalAlignmentMode = .left
+        scoreLabel.alpha = 0.5
         addChild(scoreLabel)
         
-        // Add lives label
-        livesLabel = SKLabelNode(fontNamed: "Helvetica")
-        livesLabel.text = "Lives: 5"
+        // Add lives label with Avenir font
+        livesLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+        livesLabel.text = "LIVES 5"
         livesLabel.fontSize = 20
         livesLabel.position = CGPoint(x: frame.maxX - 70, y: frame.maxY - 30)
         livesLabel.horizontalAlignmentMode = .right
+        livesLabel.alpha = 0.5
         addChild(livesLabel)
         
-        // Add high score label
-        highScoreLabel = SKLabelNode(fontNamed: "Helvetica")
-        highScoreLabel.text = "High Score: \(highScore)"
+        // Add high score label with Avenir font
+        highScoreLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+        highScoreLabel.text = "HIGH SCORE \(highScore)"
         highScoreLabel.fontSize = 20
         highScoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 30)
         highScoreLabel.horizontalAlignmentMode = .center
+        highScoreLabel.alpha = 0.5
         addChild(highScoreLabel)
         
         // Create thrust visual
@@ -338,24 +341,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         reverseFlameNode = reverseFlame
         
         // Setup debug labels but hide them initially
-        asteroidCountLabel = SKLabelNode(fontNamed: "Helvetica")
+        asteroidCountLabel = SKLabelNode(fontNamed: "Avenir-Medium")
         asteroidCountLabel.fontSize = 20
         asteroidCountLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
         asteroidCountLabel.fontColor = .green
+        asteroidCountLabel.alpha = 0.5  // 50% opacity
         asteroidCountLabel.isHidden = !showDebugInfo
         addChild(asteroidCountLabel)
         
-        beatIntervalLabel = SKLabelNode(fontNamed: "Helvetica")
+        beatIntervalLabel = SKLabelNode(fontNamed: "Avenir-Medium")
         beatIntervalLabel.fontSize = 20
         beatIntervalLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 90)
         beatIntervalLabel.fontColor = .blue
+        beatIntervalLabel.alpha = 0.5  // 50% opacity
         beatIntervalLabel.isHidden = !showDebugInfo
         addChild(beatIntervalLabel)
         
-        intervalChangedLabel = SKLabelNode(fontNamed: "Helvetica")
+        intervalChangedLabel = SKLabelNode(fontNamed: "Avenir-Medium")
         intervalChangedLabel.fontSize = 20
         intervalChangedLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 120)
         intervalChangedLabel.fontColor = .red
+        intervalChangedLabel.alpha = 0.5  // 50% opacity
         intervalChangedLabel.isHidden = !showDebugInfo
         addChild(intervalChangedLabel)
     }
@@ -730,23 +736,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             case .large:
                 run(bangLargeSound)
                 score += 5
+                createAsteroidImplosion(at: asteroid.position)  // Only implosion for large
                 showMessage("5", duration: 1.0)
             case .medium:
                 run(bangMediumSound)
                 score += 10
+                // Both effects for medium
+                createAsteroidImplosion(at: asteroid.position)
+                createAsteroidExplosion(at: asteroid.position, isMedium: true)
                 showMessage("10", duration: 1.0)
             case .small:
                 run(bangSmallSound)
                 score += 25
+                createAsteroidExplosion(at: asteroid.position, isMedium: false)
                 showMessage("25", duration: 1.0)
             }
             
             // Update score display
-            scoreLabel.text = "Score: \(score)"
-            
-            // Show score popup
-            let scoreText = "\(size == .large ? 50 : size == .medium ? 10 : 25)"
-            showMessage(scoreText, duration: 1.0)
+            scoreLabel.text = "SCORE \(score)"
             
             // Remove the original asteroid
             if let index = asteroids.firstIndex(of: asteroid) {
@@ -761,7 +768,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             case .medium:
                 spawnSplitAsteroids(at: asteroid.position, size: .small, count: 2)
             case .small:
-                createAsteroidExplosion(at: asteroid.position)
                 return
             }
             
@@ -1185,7 +1191,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         // Update asteroid count label (green) - safely
-        asteroidCountLabel?.text = "Asteroids + Saucers: \(totalCount)"
+        asteroidCountLabel?.text = "ASTEROIDS AND SAUCERS \(totalCount)"
         
         let oldInterval = beatInterval
         
@@ -1209,11 +1215,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         // Update beat interval label (blue) - safely
-        beatIntervalLabel?.text = String(format: "Beat Interval: %.2f", beatInterval)
+        beatIntervalLabel?.text = "BEAT INTERVAL \(String(format: "%.2f", beatInterval))"
         
         // Show interval changed message (red) - safely
         if oldInterval != beatInterval {
-            intervalChangedLabel?.text = "Interval Changed!"
+            intervalChangedLabel?.text = "INTERVAL CHANGED"
             // Clear the message after 1 second
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.intervalChangedLabel?.text = ""
@@ -1284,7 +1290,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func awardExtraShip() {
         lives += 1
         run(extraShipSound)
-        showMessage("EXTRA SHIP!")
+        showMessage("EXTRA SHIP", duration: 2.0)
     }
     
     func decideSaucerSize() -> SaucerSize {
@@ -1419,10 +1425,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func saucerDestroyed(_ saucer: SKShapeNode) {
+        // Stop sound first
+        saucerSound?.removeFromParent()
+        saucerSound = nil
+        
         // Award points when saucer is actually destroyed
         let isLarge = saucer.xScale == 1.0
         score += isLarge ? 50 : 75
-        scoreLabel.text = "Score: \(score)"
+        scoreLabel.text = "SCORE \(score)"
         
         // Show score without "+"
         let scoreText = "\(isLarge ? 50 : 75)"
@@ -1560,20 +1570,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add this helper function
     func showMessage(_ text: String, duration: TimeInterval = 2.0) {
-        let messageLabel = SKLabelNode(fontNamed: "Helvetica")
-        messageLabel.text = text
-        messageLabel.fontSize = 20
-        messageLabel.alpha = 0.5  // 50% opacity
-        messageLabel.position = CGPoint(x: frame.maxX - 100, y: 50)  // Lower right
-        messageLabel.horizontalAlignmentMode = .right
-        addChild(messageLabel)
-        
-        // Animate and remove
-        let fadeIn = SKAction.fadeIn(withDuration: 0.3)
-        let wait = SKAction.wait(forDuration: duration)
-        let fadeOut = SKAction.fadeOut(withDuration: 0.3)
-        let remove = SKAction.removeFromParent()
-        messageLabel.run(SKAction.sequence([fadeIn, wait, fadeOut, remove]))
+        // Only show GAME OVER and EXTRA SHIP messages
+        if text.contains("GAME OVER") || text.contains("EXTRA SHIP") {
+            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+            messageLabel.text = text.uppercased()  // Force uppercase
+            messageLabel.fontSize = 20
+            messageLabel.alpha = 0.5  // 50% opacity
+            messageLabel.position = CGPoint(x: frame.maxX - 100, y: 50)  // Bottom right
+            messageLabel.horizontalAlignmentMode = .right
+            addChild(messageLabel)
+            
+            // Animate and remove
+            let fadeIn = SKAction.fadeIn(withDuration: 0.3)
+            let wait = SKAction.wait(forDuration: duration)
+            let fadeOut = SKAction.fadeOut(withDuration: 0.3)
+            let remove = SKAction.removeFromParent()
+            messageLabel.run(SKAction.sequence([fadeIn, wait, fadeOut, remove]))
+        }
     }
     
     // Add function to toggle debug info
@@ -1688,8 +1701,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             particle.fillColor = .white
             addChild(particle)
             
-        
-            
             let move = SKAction.move(to: position, duration: 0.3)  // Quick implosion
             let fade = SKAction.fadeOut(withDuration: 0.3)
             let group = SKAction.group([move, fade])
@@ -1697,5 +1708,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             particle.run(SKAction.sequence([group, remove]))
         }
+    }
+    
+    // Update score display
+    func updateScore() {
+        scoreLabel.text = "SCORE \(score)"
+    }
+    
+    // Update lives display
+    func updateLives() {
+        livesLabel.text = "LIVES \(lives)"
+    }
+    
+    // Update high score display
+    func updateHighScore() {
+        highScoreLabel.text = "HIGH SCORE \(highScore)"
     }
 }
