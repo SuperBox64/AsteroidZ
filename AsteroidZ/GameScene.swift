@@ -132,7 +132,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var beatTimer: Timer?
     private var currentBeat = 1
     private var beatInterval: TimeInterval = 1.0
-    private let minBeatInterval: TimeInterval = 0.4
+    private let minBeatInterval: TimeInterval = 0.3
     private let maxBeatInterval: TimeInterval = 1.0
     
     // KEEP only this at class level
@@ -288,7 +288,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Try to spawn player safely after everything is set up
         tryRespawn()
         
-        // Setup audio actions
+        // Setup audio actions with proper volume
         beat1 = SKAction.playSoundFileNamed("beat1.wav", waitForCompletion: false)
         beat2 = SKAction.playSoundFileNamed("beat2.wav", waitForCompletion: false)
         fireSound = SKAction.playSoundFileNamed("fire.wav", waitForCompletion: false)
@@ -300,18 +300,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         saucerSmallSound = SKAction.playSoundFileNamed("saucerSmall.wav", waitForCompletion: false)
         thrustSound = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
         
-        // Test with small saucer
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            self?.spawnSaucer(forcedSize: .small)
-        }
-        
-        // Start regular saucer spawning after initial test
+        // Start regular saucer spawning with longer initial delay
         startSaucerTimer()
         
         // Setup thrust sound
         thrustSoundAction = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
       
-        // Start background beats
+        // Start background beats immediately after setup
         startBackgroundBeats()
         
         // Create reverse thrust visual
@@ -335,6 +330,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         saucerTimer = Timer.scheduledTimer(withTimeInterval: 20.0, repeats: true) { [weak self] _ in
             self?.spawnSaucer()
         }
+        
+        // Add initial delay before first saucer spawn (30 seconds instead of immediate)
+        saucerTimer?.fireDate = Date().addingTimeInterval(30.0)
     }
     
     // Add these new methods for asteroids and bullets
@@ -412,6 +410,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             asteroid.physicsBody?.categoryBitMask = asterCategory
             asteroid.physicsBody?.contactTestBitMask = shipCategory
             asteroid.physicsBody?.collisionBitMask = asterCategory
+            asteroid.physicsBody?.restitution = 0.8  // Reduced from 1.0
+            asteroid.physicsBody?.friction = 0.2     // Added friction
+            asteroid.physicsBody?.linearDamping = 0.1  // Added damping
+            asteroid.physicsBody?.angularDamping = 0.1 // Added angular damping
+            
+            // Add initial rotation, but slower
+            let rotationSpeed = CGFloat.random(in: -1.0...1.0)  // Reduced rotation speed
+            asteroid.physicsBody?.angularVelocity = rotationSpeed
         } else {
             asteroid.fillColor = .clear  // Roid type
             asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)  // SOLID physics body
@@ -506,9 +512,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     override func keyDown(with event: NSEvent) {
         switch event.keyCode {
         case 123: // Left arrow
-            rotationRate = 3.0
+            rotationRate = 2.0
         case 124: // Right arrow
-            rotationRate = -3.0
+            rotationRate = -2.0
         case 126: // Up arrow
             thrustDirection = 1.0
             showThrustFlame()
@@ -678,7 +684,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     // Add these new methods for asteroid splitting
-    func splitAsteroid(_ asteroid: SKShapeNode) {
+    func splitAsteroid(_ asteroid: SKShapeNode, awardPoints: Bool = false) {
         if let size = asteroid.userData?["size"] as? AsteroidSize {
             // Play appropriate explosion sound based on size
             switch size {
@@ -690,14 +696,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 run(bangSmallSound)
             }
             
-            // Add score based on asteroid size
-            switch size {
-            case .large:
-                score += 5
-            case .medium:
-                score += 10
-            case .small:
-                score += 15
+            // Only award score if awardPoints is true
+            if awardPoints {
+                switch size {
+                case .large:
+                    score += 5
+                case .medium:
+                    score += 10
+                case .small:
+                    score += 15
+                }
             }
             
             // Remove the original asteroid
@@ -754,18 +762,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 newAsteroid.physicsBody?.categoryBitMask = asterCategory
                 newAsteroid.physicsBody?.contactTestBitMask = shipCategory
                 newAsteroid.physicsBody?.collisionBitMask = asterCategory
-                newAsteroid.physicsBody?.restitution = 1.0
-                newAsteroid.physicsBody?.friction = 0.0
-                newAsteroid.physicsBody?.linearDamping = 0.0
-                newAsteroid.physicsBody?.angularDamping = 0.0
+                newAsteroid.physicsBody?.restitution = 0.8  // Reduced from 1.0
+                newAsteroid.physicsBody?.friction = 0.2     // Added friction
+                newAsteroid.physicsBody?.linearDamping = 0.1  // Added damping
+                newAsteroid.physicsBody?.angularDamping = 0.1 // Added angular damping
                 newAsteroid.physicsBody?.mass = 1.0
                 newAsteroid.physicsBody?.allowsRotation = true
                 
-                // Higher speed for colliding asteroids
-                let speed = CGFloat.random(in: 200...400)
+                // Slower initial speed for colliding asteroids
+                let speed = CGFloat.random(in: 100...200)  // Reduced from 200...400
                 let splitAngle = splitAngles[i] + CGFloat.random(in: -0.5...0.5)
                 let velocity = CGVector(dx: cos(splitAngle) * speed, dy: sin(splitAngle) * speed)
                 newAsteroid.physicsBody?.velocity = velocity
+                
+                // Add some initial rotation, but slower
+                let rotationSpeed = CGFloat.random(in: -1.0...1.0)  // Reduced rotation speed
+                newAsteroid.physicsBody?.angularVelocity = rotationSpeed
             } else {
                 // Clear filled asteroids that pass through each other
                 newAsteroid.physicsBody?.categoryBitMask = roidCategory
@@ -1007,6 +1019,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
         
+        // Add check for saucer bullets hitting asteroids
+        if collision == (saucerBulletCategory | asterCategory) || 
+           collision == (saucerBulletCategory | roidCategory) {
+            
+            let bullet = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
+                         contact.bodyA.node : contact.bodyB.node
+            let asteroid = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
+                           contact.bodyB.node : contact.bodyA.node
+            
+            // Remove the bullet
+            bullet?.removeFromParent()
+            
+            // Split the asteroid if it exists
+            if let asteroidNode = asteroid as? SKShapeNode {
+                splitAsteroid(asteroidNode, awardPoints: false)  // Don't award points
+            }
+        }
+        
         // Handle ship's bullets hitting asteroids or saucers
         if collision == (bulletCategory | asterCategory) || 
            collision == (bulletCategory | roidCategory) ||
@@ -1017,7 +1047,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let target = (contact.bodyA.categoryBitMask == bulletCategory) ? 
                          contact.bodyB.node : contact.bodyA.node
             
-            // Only score if it's the player's bullet (not saucer's)
+            // Only score if it's the player's bullet (not from saucer)
             if let bulletNode = bullet as? SKShapeNode,
                let targetNode = target as? SKShapeNode {
                 
@@ -1035,15 +1065,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                     }
                     // Score for hitting asteroids
                     else if let size = targetNode.userData?["size"] as? AsteroidSize {
-                        switch size {
-                        case .large:
-                            score += 5
-                        case .medium:
-                            score += 10
-                        case .small:
-                            score += 15
-                        }
-                        splitAsteroid(targetNode)
+                        splitAsteroid(targetNode, awardPoints: true)  // Award points for player bullets
                     }
                 }
                 
@@ -1092,22 +1114,62 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func startBackgroundBeats() {
+        // Stop any existing timer
         beatTimer?.invalidate()
         beatTimer = nil
-        updateBeatTempo()
+        
+        // Play first beat immediately
+        run(beat1)
+        currentBeat = 2
+        
+        // Create new timer that repeats
         beatTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
             self?.playNextBeat()
         }
+        
+        // Make sure timer is added to current run loop
+        RunLoop.current.add(beatTimer!, forMode: .common)
     }
     
     func updateBeatTempo() {
-        let asteroidCount = asteroids.count
-        if asteroidCount > 0 {
-            beatInterval = min(maxBeatInterval, 
-                             max(minBeatInterval, 
-                                 Double(asteroidCount) * 0.1))
-        } else {
-            beatInterval = maxBeatInterval
+        // Count only small asteroids
+        let smallAsteroidCount = asteroids.filter { asteroid in
+            if let size = asteroid.userData?["size"] as? AsteroidSize {
+                return size == .small
+            }
+            return false
+        }.count
+        
+        // Store old interval to check if it changed
+        let oldInterval = beatInterval
+        
+        // Update interval based on count
+        switch smallAsteroidCount {
+        case 0...4:
+            beatInterval = 1.0  // Slowest
+        case 5...9:
+            beatInterval = 0.9
+        case 10...14:
+            beatInterval = 0.8
+        case 15...19:
+            beatInterval = 0.7
+        case 20...29:
+            beatInterval = 0.6
+        case 30...39:
+            beatInterval = 0.5
+        case 40...49:
+            beatInterval = 0.4
+        default:  // 50 or more
+            beatInterval = 0.3  // Fastest
+        }
+        
+        // Only update timer if interval changed
+        if oldInterval != beatInterval {
+            beatTimer?.invalidate()
+            beatTimer = Timer.scheduledTimer(withTimeInterval: beatInterval, repeats: true) { [weak self] _ in
+                self?.playNextBeat()
+            }
+            RunLoop.current.add(beatTimer!, forMode: .common)
         }
     }
     
@@ -1123,42 +1185,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Update screen wrapping in update method
     func wrapAsteroid(_ asteroid: SKShapeNode) {
-        let size = asteroid.frame.size
-        let position = asteroid.position
-        let buffer: CGFloat = size.width  // Add buffer zone for smoother transition
-        
-        // Create wrapper BEFORE asteroid goes completely off screen
-        if position.x < buffer {
-            // Going off left edge
-            createOrUpdateWrapper(for: asteroid, at: CGPoint(x: frame.maxX + position.x, y: position.y))
-        } else if position.x > frame.maxX - buffer {
-            // Going off right edge
-            createOrUpdateWrapper(for: asteroid, at: CGPoint(x: position.x - frame.maxX, y: position.y))
-        } else if position.y < buffer {
-            // Going off bottom edge
-            createOrUpdateWrapper(for: asteroid, at: CGPoint(x: position.x, y: frame.maxY + position.y))
-        } else if position.y > frame.maxY - buffer {
-            // Going off top edge
-            createOrUpdateWrapper(for: asteroid, at: CGPoint(x: position.x, y: position.y - frame.maxY))
-        } else {
-            // Remove wrapper if asteroid is fully on screen
-            if let wrapper = wrappedSprites[asteroid] {
-                wrapper.removeFromParent()
-                wrappedSprites.removeValue(forKey: asteroid)
-            }
+        // Simple screen wrapping - when object goes off one edge, place it on the opposite edge
+        if asteroid.position.x < -asteroid.frame.width {
+            asteroid.position.x = frame.maxX + asteroid.frame.width/2
+        } else if asteroid.position.x > frame.maxX + asteroid.frame.width {
+            asteroid.position.x = -asteroid.frame.width/2
         }
         
-        // Actually wrap the asteroid when it's completely off screen
-        if position.x < -size.width {
-            asteroid.position.x = frame.maxX + size.width/2
-        } else if position.x > frame.maxX + size.width {
-            asteroid.position.x = -size.width/2
-        }
-        
-        if position.y < -size.height {
-            asteroid.position.y = frame.maxY + size.height/2
-        } else if position.y > frame.maxY + size.height {
-            asteroid.position.y = -size.height/2
+        if asteroid.position.y < -asteroid.frame.height {
+            asteroid.position.y = frame.maxY + asteroid.frame.height/2
+        } else if asteroid.position.y > frame.maxY + asteroid.frame.height {
+            asteroid.position.y = -asteroid.frame.height/2
         }
     }
     
@@ -1290,7 +1327,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.physicsBody = SKPhysicsBody(circleOfRadius: 2.0)
         bullet.physicsBody?.categoryBitMask = saucerBulletCategory
         bullet.physicsBody?.collisionBitMask = 0  // Don't collide with anything
-        bullet.physicsBody?.contactTestBitMask = shipCategory  // Only detect hits on ship
+        bullet.physicsBody?.contactTestBitMask = shipCategory | allAsteroidsCategory  // Add asteroid detection
         bullet.physicsBody?.affectedByGravity = false
         
         // Set velocity
