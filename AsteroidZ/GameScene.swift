@@ -209,21 +209,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Enable physics world and contact delegate
         physicsWorld.contactDelegate = self
         
-        // Initialize fade and throb actions with longer durations
-        fadeInAction = SKAction.fadeIn(withDuration: 1.0)  // Longer fade-in (3 seconds)
-        throbAction = SKAction.sequence([
-            SKAction.group([
-                SKAction.repeat(
-                    SKAction.sequence([
-                        SKAction.fadeAlpha(to: 0.5, duration: 0.5),
-                        SKAction.scale(to: 0.9, duration: 0.5),      // Start at half size
-                        SKAction.scale(to: 1.0, duration: 0.5),  // Scale up over 3 seconds
-                        SKAction.fadeAlpha(to: 1.0, duration: 0.5)
-                    ]),
-                    count: 1
-                )
-            ])
-        ])
+        // // Initialize fade and throb actions with longer durations
+        // fadeInAction = SKAction.fadeIn(withDuration: 1.0)  // Longer fade-in (3 seconds)
+        // throbAction = SKAction.sequence([
+        //     SKAction.group([
+        //         SKAction.repeat(
+        //             SKAction.sequence([
+        //                 SKAction.fadeAlpha(to: 0.5, duration: 0.5),
+        //                 SKAction.scale(to: 0.9, duration: 0.5),      // Start at half size
+        //                 SKAction.scale(to: 1.0, duration: 0.5),  // Scale up over 3 seconds
+        //                 SKAction.fadeAlpha(to: 1.0, duration: 0.5)
+        //             ]),
+        //             count: 1
+        //         )
+        //     ])
+        // ])
         
         // Create player ship with exact edge physics body
         let path = CGMutablePath()
@@ -916,34 +916,55 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
-        guard let spawnPoint = findSafeSpawnLocation() else {
-            // If no safe location found, try again in 0.5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.tryRespawn()
+        // Always start in middle of screen
+        let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
+        
+        // Check if center area is clear
+        var areaIsSafe = true
+        let safeRadius: CGFloat = 100
+        
+        // Check distance to all asteroids
+        for asteroid in asteroids {
+            let distance = hypot(asteroid.position.x - centerPoint.x, 
+                               asteroid.position.y - centerPoint.y)
+            if distance < safeRadius {
+                areaIsSafe = false
+                break
             }
-            return
         }
         
-        // Position ship and make it visible immediately
-        player.position = spawnPoint
-        player.isHidden = false
-        player.alpha = 1.0  // Make fully visible for controls
+        // Check distance to saucer if one exists
+        if let saucer = activeSaucer {
+            let distance = hypot(saucer.position.x - centerPoint.x,
+                               saucer.position.y - centerPoint.y)
+            if distance < safeRadius {
+                areaIsSafe = false
+            }
+        }
         
-        // Reset physics body for immediate control
-        player.physicsBody?.velocity = .zero
-        player.physicsBody?.angularVelocity = 0
-        
-        // Enable controls immediately
-        isRespawning = false
-        
-        // Show spawn effect without affecting controls
-        let spawnEffect = SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.2, duration: 0.2),
-            SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-        ])
-        
-        // Repeat the effect a few times
-        player.run(SKAction.repeat(spawnEffect, count: 3))
+        if areaIsSafe {
+            // Enable controls immediately
+            isRespawning = false
+            
+            // Position ship in center and make it ready immediately
+            player.position = centerPoint
+            player.isHidden = false
+            player.alpha = 1.0
+            
+            // Reset physics for immediate control
+            player.physicsBody?.velocity = .zero
+            player.physicsBody?.angularVelocity = 0
+            
+            // Show spawn effect
+            let spawnEffect = SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.2, duration: 0.2),
+                SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+            ])
+            player.run(SKAction.repeat(spawnEffect, count: 3))
+        } else {
+            // Try again immediately if area isn't clear
+            tryRespawn()
+        }
     }
     
     func isCenterAreaSafe() -> Bool {
@@ -1667,9 +1688,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             particle.fillColor = .white
             addChild(particle)
             
-            // Move particles toward center
-            let dx = position.x - particle.position.x
-            let dy = position.y - particle.position.y
+        
             
             let move = SKAction.move(to: position, duration: 0.3)  // Quick implosion
             let fade = SKAction.fadeOut(withDuration: 0.3)
