@@ -157,6 +157,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at class level
     private var gameOverLabels: [SKLabelNode] = []
     
+    // Add at class level
+    private var level: Int = 1 {
+        didSet {
+            levelLabel.text = "LEVEL \(level)"
+        }
+    }
+    private var levelLabel: SKLabelNode!
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -364,6 +372,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         intervalChangedLabel.alpha = 0.5  // 50% opacity
         intervalChangedLabel.isHidden = !showDebugInfo
         addChild(intervalChangedLabel)
+        
+        // Add level label
+        setupLevelLabel()
+    }
+    
+    func setupLevelLabel() {
+        levelLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+        levelLabel.text = "LEVEL \(level)"
+        levelLabel.fontSize = 20
+        levelLabel.position = CGPoint(x: 70, y: 50)  // Bottom left
+        levelLabel.horizontalAlignmentMode = .left
+        levelLabel.alpha = 0.5
+        addChild(levelLabel)
     }
     
     func startSaucerTimer() {
@@ -751,6 +772,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Wrap player position
         wrapPlayer()
+        
+        // Check for level completion
+        checkLevelCompletion()
     }
     
     // Add these new methods for asteroid splitting
@@ -1191,7 +1215,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         asteroids.forEach { $0.removeFromParent() }
         asteroids.removeAll()
         
-        // Spawn new asteroids
+        // Spawn initial asteroids (10 for level 1)
         for _ in 0..<10 {
             spawnAsteroid(size: .large)
         }
@@ -1205,6 +1229,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Use these instead
         beatInterval = maxBeatInterval
         startBackgroundBeats()
+        
+        level = 1  // Reset level
     }
     
     func startBackgroundBeats() {
@@ -1640,7 +1666,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             addChild(messageLabel)
             gameOverLabels.append(messageLabel)  // Track this label
             
-            // Press Spacebar to Play message
+            // Press Spacebar to Play message with throbbing animation
             let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             promptLabel.text = "Press Spacebar to Play"
             promptLabel.fontSize = 20
@@ -1649,6 +1675,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             promptLabel.horizontalAlignmentMode = .center
             addChild(promptLabel)
             gameOverLabels.append(promptLabel)  // Track this label
+            
+            // Add throbbing animation
+            let throb = SKAction.sequence([
+                SKAction.fadeAlpha(to: 0.2, duration: 1.0),
+                SKAction.fadeAlpha(to: 0.5, duration: 1.0)
+            ])
+            promptLabel.run(SKAction.repeatForever(throb))
         } else if text.contains("EXTRA SHIP") {
             let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             messageLabel.text = text.uppercased()
@@ -1848,5 +1881,31 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         reverseFlameNode?.fillColor = .clear
         reverseFlameNode?.isHidden = true
         player.addChild(reverseFlameNode!)
+    }
+    
+    // Add new function to check for level completion
+    func checkLevelCompletion() {
+        if asteroids.isEmpty {
+            startNextLevel()
+        }
+    }
+    
+    // Add new function to start next level
+    func startNextLevel() {
+        level += 1
+        
+        // Hide player temporarily
+        player.isHidden = true
+        
+        // Show level message
+        showMessage("LEVEL \(level)", duration: 2.0)
+        
+        // Spawn new asteroids (level + 9 asteroids)
+        for _ in 0..<(level + 9) {
+            spawnAsteroid(size: .large)
+        }
+        
+        // Try to respawn player safely
+        tryRespawn()
     }
 }
