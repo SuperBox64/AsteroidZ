@@ -718,31 +718,28 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     // Add these new methods for asteroid splitting
-    func splitAsteroid(_ asteroid: SKShapeNode, awardPoints: Bool = false) {
+    func splitAsteroid(_ asteroid: SKShapeNode) {
         if let size = asteroid.userData?["size"] as? AsteroidSize {
-            // Play appropriate explosion sound based on size
+            // Award points when asteroid is actually removed
             switch size {
             case .large:
                 run(bangLargeSound)
+                score += 5
             case .medium:
                 run(bangMediumSound)
+                score += 10
             case .small:
                 run(bangSmallSound)
-                // Add explosion effect for small asteroids
+                score += 25
                 createAsteroidExplosion(at: asteroid.position)
             }
             
-            // Only award score if awardPoints is true
-            if awardPoints {
-                switch size {
-                case .large:
-                    score += 5
-                case .medium:
-                    score += 10
-                case .small:
-                    score += 15
-                }
-            }
+            // Update score display
+            scoreLabel.text = "Score: \(score)"
+            
+            // Show score popup
+            let scoreText = "+\(size == .large ? 5 : size == .medium ? 10 : 25)"
+            showMessage(scoreText, duration: 1.0)
             
             // Remove the original asteroid
             if let index = asteroids.firstIndex(of: asteroid) {
@@ -750,19 +747,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             asteroid.removeFromParent()
             
-            // Determine new size and number of splits
+            // Split into smaller asteroids
             switch size {
             case .large:
                 spawnSplitAsteroids(at: asteroid.position, size: .medium, count: 2)
             case .medium:
                 spawnSplitAsteroids(at: asteroid.position, size: .small, count: 2)
             case .small:
-                // Small asteroids explode and disappear
                 createAsteroidExplosion(at: asteroid.position)
                 return
             }
             
-            // Update beat tempo after splitting
             updateBeatTempo()
         }
     }
@@ -1054,59 +1049,29 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
         
-        // Add check for saucer bullets hitting asteroids
-        if collision == (saucerBulletCategory | asterCategory) || 
-           collision == (saucerBulletCategory | roidCategory) {
-            
-            let bullet = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
-                         contact.bodyA.node : contact.bodyB.node
-            let asteroid = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
-                           contact.bodyB.node : contact.bodyA.node
-            
-            // Remove the bullet
-            bullet?.removeFromParent()
-            
-            // Split the asteroid if it exists
-            if let asteroidNode = asteroid as? SKShapeNode {
-                splitAsteroid(asteroidNode, awardPoints: false)  // Don't award points
-            }
-        }
-        
-        // Handle ship's bullets hitting asteroids or saucers
+        // Handle player bullets hitting targets
         if collision == (bulletCategory | asterCategory) || 
            collision == (bulletCategory | roidCategory) ||
            collision == (bulletCategory | saucerCategory) {
             
-            let bullet = (contact.bodyA.categoryBitMask == bulletCategory) ? 
-                         contact.bodyA.node : contact.bodyB.node
-            let target = (contact.bodyA.categoryBitMask == bulletCategory) ? 
-                         contact.bodyB.node : contact.bodyA.node
+            // Determine which node is the bullet and which is the target
+            let bullet = contact.bodyA.categoryBitMask == bulletCategory ? contact.bodyA.node : contact.bodyB.node
+            let target = contact.bodyA.categoryBitMask == bulletCategory ? contact.bodyB.node : contact.bodyA.node
             
-            // Only score if it's the player's bullet (not from saucer)
-            if let bulletNode = bullet as? SKShapeNode,
-               let targetNode = target as? SKShapeNode {
-                
-                // Check if bullet is from player (not from saucer)
-                if bulletNode.physicsBody?.categoryBitMask == bulletCategory {
-                    
-                    // Score for hitting saucer
-                    if target?.physicsBody?.categoryBitMask == saucerCategory {
-                        // Check saucer size and play appropriate sound
-                        if let saucer = target as? SKShapeNode {
-                            let isLarge = saucer.xScale == 1.0
-                            score += isLarge ? 25 : 50  // Large = 50, Small = 75 points
-                            saucerDestroyed(saucer)
-                        }
-                    }
-                    // Score for hitting asteroids
-                    else if let _ = targetNode.userData?["size"] as? AsteroidSize {
-                        splitAsteroid(targetNode, awardPoints: true)  // Award points for player bullets
-                    }
+            // Handle destruction
+            if let targetNode = target as? SKShapeNode {
+                // Check if it's a saucer - just destroy it, scoring happens in saucerDestroyed
+                if targetNode.physicsBody?.categoryBitMask == saucerCategory {
+                    saucerDestroyed(targetNode)
                 }
-                
-                // Remove the bullet regardless of source
-                bulletNode.removeFromParent()
+                // Check if it's an asteroid
+                else if let _ = targetNode.userData?["size"] as? AsteroidSize {
+                    splitAsteroid(targetNode)
+                }
             }
+            
+            // Remove the bullet
+            bullet?.removeFromParent()
         }
         
         // Handle ship collisions
@@ -1432,8 +1397,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func saucerDestroyed(_ saucer: SKShapeNode) {
-        // Determine size and play appropriate explosion sound
+        // Award points when saucer is actually destroyed
         let isLarge = saucer.xScale == 1.0
+        score += isLarge ? 50 : 75  // Large = 50, Small = 75
+        scoreLabel.text = "Score: \(score)"
+        
+        // Show score popup
+        let scoreText = "+\(isLarge ? 50 : 75)"
+        showMessage(scoreText, duration: 1.0)
+        
+        // Determine size and play appropriate explosion sound
         run(isLarge ? bangLargeSound : bangSmallSound)
         
         // Create explosion debris
