@@ -295,6 +295,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         thrustNode?.isHidden = true
         player.addChild(thrustNode!)
         
+        // Create reverse thrust visual
+        let reverseThrustPath = CGMutablePath()
+        reverseThrustPath.move(to: CGPoint(x: -8, y: 20))  // Left base at top
+        reverseThrustPath.addLine(to: CGPoint(x: 0, y: 30)) // Thrust point at top
+        reverseThrustPath.addLine(to: CGPoint(x: 8, y: 20))  // Right base at top
+        
+        reverseFlameNode = SKShapeNode(path: reverseThrustPath)
+        reverseFlameNode?.strokeColor = .white
+        reverseFlameNode?.lineWidth = 2.0
+        reverseFlameNode?.fillColor = .clear
+        reverseFlameNode?.isHidden = true
+        player.addChild(reverseFlameNode!)
+        
         // Try to spawn player safely after everything is set up
         tryRespawn()
         
@@ -323,22 +336,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
       
         // Start background beats immediately after setup
         startBackgroundBeats()
-        
-        // Create reverse thrust visual
-        let reverseFlame = SKShapeNode()
-        let reverseThrustPath = CGMutablePath()
-        reverseThrustPath.move(to: CGPoint(x: -8, y: 20))  // Left base at top
-        reverseThrustPath.addLine(to: CGPoint(x: 0, y: 30)) // Thrust point at top
-        reverseThrustPath.addLine(to: CGPoint(x: 8, y: 20))  // Right base at top
-        
-        reverseFlame.path = reverseThrustPath
-        reverseFlame.strokeColor = .white
-        reverseFlame.lineWidth = 2.0
-        reverseFlame.fillColor = .clear
-        reverseFlame.isHidden = true
-        player.addChild(reverseFlame)
-        
-        reverseFlameNode = reverseFlame
         
         // Setup debug labels but hide them initially
         asteroidCountLabel = SKLabelNode(fontNamed: "Avenir-Medium")
@@ -874,29 +871,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Play explosion sound
         run(bangMediumSound)
         
-        // Stop any existing sounds
-        thrustNode?.removeFromParent()
+        // Stop saucer sound only
         saucerSound?.removeFromParent()
         
         // Create ship destruction animation
         createShipDestructionAnimation()
         
-        // Reset ship position and hide it
+        // Hide player and flames
+        player.isHidden = true
+        thrustNode?.isHidden = true
+        reverseFlameNode?.isHidden = true
         player.position = CGPoint(x: frame.midX, y: frame.midY)  // Reset to center
-        player.removeFromParent()
         
         // Decrement lives AFTER checking for game over
-        if lives <= 1 {  // Changed from lives <= 0
-            lives = 0    // Set to exactly 0
+        if lives <= 1 {
+            lives = 0
             isGameOver = true
             showMessage("GAME OVER", duration: 3.0)
             // ... rest of game over code ...
         } else {
-            lives -= 1   // Decrement lives only if we're not at game over
-            // Try to respawn after a delay if we still have lives
+            lives -= 1
             isRespawning = true
-            addChild(player)  // Add back to scene
-            player.isHidden = true  // Keep hidden until respawn
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.tryRespawn()
             }
@@ -1004,11 +999,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
-        // Make sure player exists and is in scene
-        if player.parent == nil {
-            addChild(player)
-        }
-        
         // Always start in middle of screen
         let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
         
@@ -1039,9 +1029,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Enable controls immediately
             isRespawning = false
             
-            // Force ship to center of screen
-            player.position = centerPoint
+            // Show player
             player.isHidden = false
+            player.position = centerPoint
             player.alpha = 1.0
             
             // Reset physics for immediate control
@@ -1068,7 +1058,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             ])
             player.run(SKAction.repeat(spawnEffect, count: 3))
         } else {
-            // Try again after a short delay instead of immediate recursion
+            // Try again after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.tryRespawn()
             }
@@ -1589,11 +1579,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func showThrustFlame() {
-        // Flicker effect for thrust
+        // Create flicker animation
         let flicker = SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.3, duration: 0.1),
-            SKAction.fadeAlpha(to: 1.0, duration: 0.1)
+            SKAction.fadeOut(withDuration: 0.1),
+            SKAction.fadeIn(withDuration: 0.1)
         ])
+        
         thrustNode?.isHidden = false
         thrustNode?.run(SKAction.repeatForever(flicker))
     }
@@ -1604,18 +1595,30 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func showReverseFlame() {
-        // Flicker effect for reverse thrust
+        // Keep bottom flame fully visible without animation
+        thrustNode?.isHidden = false
+        thrustNode?.alpha = 1.0  // Ensure bottom flame stays solid
+        
+        // Flicker effect for reverse thrust only
         let flicker = SKAction.sequence([
             SKAction.fadeAlpha(to: 0.3, duration: 0.1),
             SKAction.fadeAlpha(to: 1.0, duration: 0.1)
         ])
+        
+        // Only animate the reverse flame
         reverseFlameNode?.isHidden = false
-        reverseFlameNode?.run(SKAction.repeatForever(flicker))
+        reverseFlameNode?.run(SKAction.repeatForever(flicker), withKey: "reverseFlicker")
     }
     
     func hideReverseFlame() {
-        reverseFlameNode?.removeAllActions()
+        // Only hide and stop the reverse (top) flame
+        reverseFlameNode?.removeAction(forKey: "reverseFlicker")
         reverseFlameNode?.isHidden = true
+        
+        // If forward thrust is active, make sure bottom flame stays visible
+        if thrustDirection > 0 {
+            thrustNode?.isHidden = false
+        }
     }
     
     // Add this helper function
@@ -1789,5 +1792,37 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         } else if player.position.y > frame.maxY {
             player.position.y = 0
         }
+    }
+    
+    func recreateFlameEffects() {
+        // Remove old flames if they exist
+        thrustNode?.removeFromParent()
+        reverseFlameNode?.removeFromParent()
+        
+        // Recreate forward thrust flame
+        let thrustPath = CGMutablePath()
+        thrustPath.move(to: CGPoint(x: -8, y: -20))
+        thrustPath.addLine(to: CGPoint(x: 0, y: -30))
+        thrustPath.addLine(to: CGPoint(x: 8, y: -20))
+        
+        thrustNode = SKShapeNode(path: thrustPath)
+        thrustNode?.strokeColor = .white
+        thrustNode?.lineWidth = 2.0
+        thrustNode?.fillColor = .clear
+        thrustNode?.isHidden = true
+        player.addChild(thrustNode!)
+        
+        // Recreate reverse thrust flame
+        let reverseThrustPath = CGMutablePath()
+        reverseThrustPath.move(to: CGPoint(x: -8, y: 20))
+        reverseThrustPath.addLine(to: CGPoint(x: 0, y: 30))
+        reverseThrustPath.addLine(to: CGPoint(x: 8, y: 20))
+        
+        reverseFlameNode = SKShapeNode(path: reverseThrustPath)
+        reverseFlameNode?.strokeColor = .white
+        reverseFlameNode?.lineWidth = 2.0
+        reverseFlameNode?.fillColor = .clear
+        reverseFlameNode?.isHidden = true
+        player.addChild(reverseFlameNode!)
     }
 }
