@@ -166,6 +166,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var levelLabel: SKLabelNode!
     
     // Add at class level
+    private var isFullscreen = true  // Start in fullscreen mode
+    
+    // Add at class level
     private func createPlayerShip() -> SKShapeNode {
         let path = CGMutablePath()
         path.move(to: CGPoint(x: 0, y: 20))    // Top point
@@ -614,6 +617,41 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func keyDown(with event: NSEvent) {
+        // Handle escape key for fullscreen/cursor toggle
+        if event.keyCode == 53 {  // Escape key
+            if let window = view?.window {
+                // Pause game for 1 second
+                isPaused = true
+                
+                window.toggleFullScreen(nil)
+                isFullscreen.toggle()
+                
+                if !isFullscreen {
+                    NSCursor.unhide()
+                    // Hide title bar and traffic light buttons but keep window border
+                    window.styleMask = [.titled, .resizable, .fullSizeContentView]
+                    window.titlebarAppearsTransparent = true
+                    window.titleVisibility = .hidden
+                    window.standardWindowButton(.closeButton)?.isHidden = true
+                    window.standardWindowButton(.miniaturizeButton)?.isHidden = true
+                    window.standardWindowButton(.zoomButton)?.isHidden = true
+                    
+                    // Set to 720p while maintaining 16:9 aspect ratio
+                    let size = NSSize(width: 1280, height: 720)
+                    window.setContentSize(size)
+                    window.center()
+                } else {
+                    NSCursor.hide()
+                }
+                
+                // Resume game after 1 second
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                    self?.isPaused = false
+                }
+                return
+            }
+        }
+        
         if isGameOver {
             // Only allow spacebar during game over
             if event.keyCode == 49 { // Spacebar
@@ -1143,13 +1181,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 SKAction.changePlaybackRate(to: -1.0, duration: 0)  // Full reverse
             ])
             
-            let playSoundX = SKAction.sequence([
-                setupSound,
-                SKAction.play()
-            ])
-            
-            thrustSound.run(playSound)
-            addChild(thrustSound)
+//            let playSoundX = SKAction.sequence([
+//                setupSound,
+//                SKAction.play()
+//            ])
+//            
+//            thrustSound.run(playSound)
+//            addChild(thrustSound)
             
             // Remove sound after throb finishes
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
