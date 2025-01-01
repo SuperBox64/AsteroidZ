@@ -645,7 +645,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
                 
                 // Resume game after 1 second
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
                     self?.isPaused = false
                 }
                 return
