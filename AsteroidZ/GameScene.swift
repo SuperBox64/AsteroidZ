@@ -1068,17 +1068,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             player.physicsBody?.velocity = .zero
             player.physicsBody?.angularVelocity = 0
             
-            // Play thrust sound for 1.5 seconds
-            let thrustNode = SKAudioNode(fileNamed: "thrust.wav")
-            thrustNode.autoplayLooped = true
-            addChild(thrustNode)
-            
-            // Stop and remove thrust sound after 1.5 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                thrustNode.run(SKAction.sequence([
-                    SKAction.stop(),
-                    SKAction.removeFromParent()
-                ]))
+            // Play reversed thrust sound at 25% volume
+            if let thrustSound = SKAudioNode(fileNamed: "thrust.wav") {
+                thrustSound.autoplayLooped = false
+                thrustSound.run(SKAction.changeVolume(to: 0.25, duration: 0))
+                
+                // Create reversed playback
+                let reverse = SKAction.sequence([
+                    SKAction.play(),
+                    SKAction.changePlaybackRate(to: -1.0, duration: 0)
+                ])
+                
+                thrustSound.run(reverse)
+                addChild(thrustSound)
+                
+                // Remove sound node after playing
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    thrustSound.removeFromParent()
+                }
             }
             
             // Show spawn effect
