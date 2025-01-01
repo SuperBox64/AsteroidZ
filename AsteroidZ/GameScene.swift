@@ -193,14 +193,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Use simpler path for physics body
         saucer.physicsBody = SKPhysicsBody(polygonFrom: path)
         saucer.physicsBody?.categoryBitMask = saucerCategory
-        saucer.physicsBody?.contactTestBitMask = shipCategory | bulletCategory
-        saucer.physicsBody?.collisionBitMask = 0
+        saucer.physicsBody?.collisionBitMask = asterCategory  // Add collision with Aster type
+        saucer.physicsBody?.contactTestBitMask = bulletCategory | asterCategory  // Test contact with bullets and Asters
         saucer.physicsBody?.affectedByGravity = false
-        saucer.physicsBody?.isDynamic = true
-        saucer.physicsBody?.usesPreciseCollisionDetection = true
-        
-        // Add these for better collision detection
-        saucer.physicsBody?.mass = 1.0
         saucer.physicsBody?.linearDamping = 0
         saucer.physicsBody?.angularDamping = 0
         
@@ -312,7 +307,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         saucerSmallSound = SKAction.playSoundFileNamed("saucerSmall.wav", waitForCompletion: false)
         thrustSound = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
         
-        // Start regular saucer spawning with longer initial delay
+        // Spawn first saucer immediately
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {  // 5 second initial delay
+            self.spawnSaucer(forcedSize: .large)  // Force first saucer to be large
+        }
+        
+        // Start regular saucer timer
         startSaucerTimer()
         
         // Setup thrust sound
@@ -361,12 +361,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func startSaucerTimer() {
-        saucerTimer = Timer.scheduledTimer(withTimeInterval: 20.0, repeats: true) { [weak self] _ in
+        // Clear any existing timer
+        saucerTimer?.invalidate()
+        
+        // Create new timer
+        saucerTimer = Timer.scheduledTimer(withTimeInterval: baseSaucerInterval, repeats: true) { [weak self] _ in
             self?.spawnSaucer()
         }
         
-        // Add initial delay before first saucer spawn (30 seconds instead of immediate)
-        saucerTimer?.fireDate = Date().addingTimeInterval(30.0)
+        // Add to RunLoop
+        if let timer = saucerTimer {
+            RunLoop.current.add(timer, forMode: .common)
+        }
     }
     
     // Add these new methods for asteroids and bullets
@@ -720,25 +726,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add these new methods for asteroid splitting
     func splitAsteroid(_ asteroid: SKShapeNode) {
         if let size = asteroid.userData?["size"] as? AsteroidSize {
-            // Award points when asteroid is actually removed
             switch size {
             case .large:
                 run(bangLargeSound)
                 score += 5
+                showMessage("5", duration: 1.0)
             case .medium:
                 run(bangMediumSound)
                 score += 10
+                showMessage("10", duration: 1.0)
             case .small:
                 run(bangSmallSound)
                 score += 25
-                createAsteroidExplosion(at: asteroid.position)
+                showMessage("25", duration: 1.0)
             }
             
             // Update score display
             scoreLabel.text = "Score: \(score)"
             
             // Show score popup
-            let scoreText = "+\(size == .large ? 5 : size == .medium ? 10 : 25)"
+            let scoreText = "\(size == .large ? 50 : size == .medium ? 10 : 25)"
             showMessage(scoreText, duration: 1.0)
             
             // Remove the original asteroid
@@ -909,53 +916,34 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
-        // Always start in middle of screen
-        let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
-        
-        // Check if center area is clear
-        var areaIsSafe = true
-        let safeRadius: CGFloat = 100
-        
-        // Check distance to all asteroids
-        for asteroid in asteroids {
-            let distance = hypot(asteroid.position.x - centerPoint.x, 
-                               asteroid.position.y - centerPoint.y)
-            if distance < safeRadius {
-                areaIsSafe = false
-                break
-            }
-        }
-        
-        // Check distance to saucer if one exists
-        if let saucer = activeSaucer {
-            let distance = hypot(saucer.position.x - centerPoint.x,
-                               saucer.position.y - centerPoint.y)
-            if distance < safeRadius {
-                areaIsSafe = false
-            }
-        }
-        
-        if areaIsSafe {
-            // Safe to spawn in center
-            player.position = centerPoint
-            player.isHidden = false
-            isRespawning = false
-            
-            // Reset thrust when spawning
-            thrustDirection = 0
-            player.physicsBody?.velocity = .zero
-            player.physicsBody?.angularVelocity = 0
-            
-            // Start completely invisible and add the effects
-            player.alpha = 0
-            player.setScale(1.0)
-            player.run(SKAction.group([fadeInAction, throbAction]))
-        } else {
-            // Try again in a second if area isn't clear
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        guard let spawnPoint = findSafeSpawnLocation() else {
+            // If no safe location found, try again in 0.5 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.tryRespawn()
             }
+            return
         }
+        
+        // Position ship and make it visible immediately
+        player.position = spawnPoint
+        player.isHidden = false
+        player.alpha = 1.0  // Make fully visible for controls
+        
+        // Reset physics body for immediate control
+        player.physicsBody?.velocity = .zero
+        player.physicsBody?.angularVelocity = 0
+        
+        // Enable controls immediately
+        isRespawning = false
+        
+        // Show spawn effect without affecting controls
+        let spawnEffect = SKAction.sequence([
+            SKAction.fadeAlpha(to: 0.2, duration: 0.2),
+            SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+        ])
+        
+        // Repeat the effect a few times
+        player.run(SKAction.repeat(spawnEffect, count: 3))
     }
     
     func isCenterAreaSafe() -> Bool {
@@ -1048,6 +1036,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add contact delegate method
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+        
+        // Add handling for Aster hitting saucer
+        if collision == (asterCategory | saucerCategory) {
+            // Get the saucer node
+            let saucer = (contact.bodyA.categoryBitMask == saucerCategory) ? 
+                         contact.bodyA.node as? SKShapeNode : 
+                         contact.bodyB.node as? SKShapeNode
+            
+            // Destroy the saucer
+            if let saucer = saucer {
+                saucerDestroyed(saucer)
+            }
+        }
         
         // Handle player bullets hitting targets
         if collision == (bulletCategory | asterCategory) || 
@@ -1399,11 +1400,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func saucerDestroyed(_ saucer: SKShapeNode) {
         // Award points when saucer is actually destroyed
         let isLarge = saucer.xScale == 1.0
-        score += isLarge ? 50 : 75  // Large = 50, Small = 75
+        score += isLarge ? 50 : 75
         scoreLabel.text = "Score: \(score)"
         
-        // Show score popup
-        let scoreText = "+\(isLarge ? 50 : 75)"
+        // Show score without "+"
+        let scoreText = "\(isLarge ? 50 : 75)"
         showMessage(scoreText, duration: 1.0)
         
         // Determine size and play appropriate explosion sound
@@ -1597,21 +1598,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             return false
         }.count
         
-        // Calculate new interval
+        // Calculate new interval with 50% faster spawns
         var newInterval = baseSaucerInterval
         
-        // Reduce interval based on small asteroid count
+        // Reduce interval based on small asteroid count (50% faster than before)
         switch smallAsteroidCount {
         case 0...4:
-            newInterval = baseSaucerInterval       // 20 seconds
+            newInterval = baseSaucerInterval * 0.5       // 10 seconds (was 20)
         case 5...9:
-            newInterval = baseSaucerInterval * 0.8 // 16 seconds
+            newInterval = baseSaucerInterval * 0.4       // 8 seconds (was 16)
         case 10...14:
-            newInterval = baseSaucerInterval * 0.6 // 12 seconds
+            newInterval = baseSaucerInterval * 0.3       // 6 seconds (was 12)
         case 15...19:
-            newInterval = baseSaucerInterval * 0.4 // 8 seconds
+            newInterval = baseSaucerInterval * 0.2       // 4 seconds (was 8)
         default:
-            newInterval = minSaucerInterval        // 5 seconds
+            newInterval = minSaucerInterval * 0.5        // 2.5 seconds (was 5)
         }
         
         // Update timer if it exists
@@ -1624,24 +1625,54 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     // Add new explosion effect for asteroids
-    func createAsteroidExplosion(at position: CGPoint) {
-        // Create more particles for a bigger explosion
-        for _ in 0...8 {
-            let particle = SKShapeNode(circleOfRadius: 1.5)
+    func createAsteroidExplosion(at position: CGPoint, isMedium: Bool = false) {
+        // Adjust particle count and parameters based on size
+        let particleCount = isMedium ? 6 : 8  // Keep same particle counts
+        let particleRadius: CGFloat = isMedium ? 1.0 : 0.5625  // 50% larger than before (0.375 * 1.5)
+        let speedRange: ClosedRange<CGFloat> = isMedium ? 50.0...150.0 : 37.5...75.0  // 50% faster (25...50 * 1.5)
+        
+        for _ in 0...particleCount {
+            let particle = SKShapeNode(circleOfRadius: particleRadius)
             particle.position = position
             particle.strokeColor = .white
             particle.fillColor = .white
             addChild(particle)
             
-            // Random direction with faster speed
             let angle = CGFloat.random(in: 0...(2 * .pi))
-            let speed = CGFloat.random(in: 100...200)  // Faster than bullet explosion
+            let speed = CGFloat.random(in: speedRange)
             let dx = cos(angle) * speed
             let dy = sin(angle) * speed
             
-            // Longer animation
-            let move = SKAction.move(by: CGVector(dx: dx, dy: dy), duration: 0.7)
-            let fade = SKAction.fadeOut(withDuration: 0.7)
+            let duration = isMedium ? 0.5 : 0.7  // Keep same duration
+            let move = SKAction.move(by: CGVector(dx: dx, dy: dy), duration: duration)
+            let fade = SKAction.fadeOut(withDuration: duration)
+            let group = SKAction.group([move, fade])
+            let remove = SKAction.removeFromParent()
+            
+            particle.run(SKAction.sequence([group, remove]))
+        }
+    }
+    
+    // Add new implosion effect
+    func createAsteroidImplosion(at position: CGPoint) {
+        let particleCount = 12  // More particles for implosion
+        
+        for _ in 0...particleCount {
+            let particle = SKShapeNode(circleOfRadius: 1.0)
+            particle.position = CGPoint(
+                x: position.x + CGFloat.random(in: -40...40),
+                y: position.y + CGFloat.random(in: -40...40)
+            )
+            particle.strokeColor = .white
+            particle.fillColor = .white
+            addChild(particle)
+            
+            // Move particles toward center
+            let dx = position.x - particle.position.x
+            let dy = position.y - particle.position.y
+            
+            let move = SKAction.move(to: position, duration: 0.3)  // Quick implosion
+            let fade = SKAction.fadeOut(withDuration: 0.3)
             let group = SKAction.group([move, fade])
             let remove = SKAction.removeFromParent()
             
