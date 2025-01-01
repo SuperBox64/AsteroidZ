@@ -147,6 +147,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var beatIntervalLabel: SKLabelNode!
     private var intervalChangedLabel: SKLabelNode!
     
+    // Add at top of class with other properties
+    private var showDebugInfo: Bool = false  // Set to false by default
+    
     func createSaucer(size: SaucerSize) -> SKShapeNode {
         let path = CGMutablePath()
         let scale: CGFloat = size == .large ? 1.0 : 0.5
@@ -330,23 +333,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         reverseFlameNode = reverseFlame
         
-        // Add debug labels
+        // Setup debug labels but hide them initially
         asteroidCountLabel = SKLabelNode(fontNamed: "Helvetica")
         asteroidCountLabel.fontSize = 20
         asteroidCountLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 60)
         asteroidCountLabel.fontColor = .green
+        asteroidCountLabel.isHidden = !showDebugInfo
         addChild(asteroidCountLabel)
         
         beatIntervalLabel = SKLabelNode(fontNamed: "Helvetica")
         beatIntervalLabel.fontSize = 20
         beatIntervalLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 90)
         beatIntervalLabel.fontColor = .blue
+        beatIntervalLabel.isHidden = !showDebugInfo
         addChild(beatIntervalLabel)
         
         intervalChangedLabel = SKLabelNode(fontNamed: "Helvetica")
         intervalChangedLabel.fontSize = 20
         intervalChangedLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 120)
         intervalChangedLabel.fontColor = .red
+        intervalChangedLabel.isHidden = !showDebugInfo
         addChild(intervalChangedLabel)
     }
     
@@ -1547,5 +1553,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let fadeOut = SKAction.fadeOut(withDuration: 0.3)
         let remove = SKAction.removeFromParent()
         messageLabel.run(SKAction.sequence([fadeIn, wait, fadeOut, remove]))
+    }
+    
+    // Add function to toggle debug info
+    func toggleDebugInfo() {
+        showDebugInfo.toggle()
+        asteroidCountLabel?.isHidden = !showDebugInfo
+        beatIntervalLabel?.isHidden = !showDebugInfo
+        intervalChangedLabel?.isHidden = !showDebugInfo
     }
 }
