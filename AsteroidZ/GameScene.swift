@@ -132,7 +132,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var beatTimer: Timer?
     private var currentBeat = 1
     private var beatInterval: TimeInterval = 1.0
-    private let minBeatInterval: TimeInterval = 0.3
+    private let minBeatInterval: TimeInterval = 0.1
     private let maxBeatInterval: TimeInterval = 1.0
     
     // KEEP only this at class level
@@ -1170,14 +1170,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Add throb effect
             if let currentPlayer = player {
                 let throb = SKAction.sequence([
-                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
-                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
+                    SKAction.fadeAlpha(to: 0.2, duration: 0.2),
+                    SKAction.fadeAlpha(to: 0.8, duration: 0.2)
                 ])
                 
                 // Create sequence: 3 throbs followed by final fade to full opacity
                 let throbSequence = SKAction.sequence([
-                    SKAction.repeat(throb, count: 3),
-                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)  // Final fade to full opacity
+                    SKAction.repeat(throb, count: 2),
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.4)  // Final fade to full opacity
                 ])
                 
                 currentPlayer.run(throbSequence)
@@ -1405,19 +1405,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         switch totalCount {
         case 0...5:
-            beatInterval = 0.4
+            beatInterval = 0.2
         case 4...9:
-            beatInterval = 0.6
+            beatInterval = 0.4
         case 10...14:
-            beatInterval = 0.8
+            beatInterval = 0.6
         case 15...19:
             beatInterval = 1.0
         case 20...24:
-            beatInterval = 0.8
-        case 25...29:
             beatInterval = 0.6
-        case 30...:
+        case 25...29:
             beatInterval = 0.4
+        case 30...:
+            beatInterval = 0.2
         default:
             beatInterval = 1.0
         }
