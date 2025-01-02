@@ -3,6 +3,8 @@ WideScreen version of AsteroidZ made with SpriteKit for macOS and AI
 Game Designed by SuperBox64, StarplayrX, Todd Bruss (c) 2025
 Play your favorite Space Rocks Game on the Big Screen!
 
+Extra ship every 500 pts.. we will probably change this as it's pretty EZ.
+
 Controls Briefing:
 
 Use Cursor Keys + Spacebar to play
