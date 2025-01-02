@@ -953,7 +953,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             
             // Update score display
-            scoreLabel.text = "SCORE \(score)"
+            updateScore()
             
             // Remove the original asteroid
             if let index = asteroids.firstIndex(of: asteroid) {
@@ -1704,7 +1704,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Award points when saucer is actually destroyed
         let isLarge = saucer.xScale == 1.0
         score += isLarge ? 50 : 75
-        scoreLabel.text = "SCORE \(score)"
+        updateScore()
         
         // Show score without "+"
         let scoreText = "\(isLarge ? 50 : 75)"
@@ -2025,12 +2025,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Update score display
     func updateScore() {
-        scoreLabel.text = "SCORE \(score)"
+        if let label = scoreLabel {
+            label.text = "SCORE \(score)"
+        }
     }
     
     // Update lives display
     func updateLives() {
-        livesLabel.text = "LIVES \(lives)"
+        if let label = livesLabel {
+            label.text = "LIVES \(lives)"
+        }
     }
     
     // Update high score display
