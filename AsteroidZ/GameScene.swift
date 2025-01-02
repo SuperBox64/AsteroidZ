@@ -7,6 +7,7 @@
 
 import SpriteKit
 import GameplayKit
+import GameController
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
@@ -120,7 +121,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var currentAsteroidSpeed: CGFloat = 50.0   // Start at new initial speed
     
     // At top of class
-    private let shipThrustSpeed: CGFloat = 15.0  // Reduced by 90% from 150 to 15
+    private var shipThrustSpeed: CGFloat = 15.0  // Reduced by 90% from 150 to 15
     
     // At top of class
     private var thrustSoundAction: SKAction!
@@ -174,6 +175,113 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // At class level
     private var saucerSpawnEnabled = true  // Track if spawning is enabled
+    
+    // Add at top of file
+    private var gamePadConnected = false
+    
+    // Add at top of class
+    private var keyboardLeft = false
+    private var keyboardRight = false
+    
+    // Add this function to GameScene class
+    func setupGameController() {
+        // Enable game controller support
+        GCController.startWirelessControllerDiscovery()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleControllerDidConnect),
+            name: .GCControllerDidConnect,
+            object: nil
+        )
+        
+        // Check for already connected controller
+        if let controller = GCController.controllers().first {
+            configureGameController(controller)
+        }
+    }
+    
+    @objc func handleControllerDidConnect(_ notification: Notification) {
+        if let gameController = notification.object as? GCController {
+            configureGameController(gameController)
+            gamePadConnected = true
+        }
+    }
+    
+    func configureGameController(_ controller: GCController) {
+        guard let gamepad = controller.extendedGamepad else { return }
+        
+        // Configure D-pad
+        gamepad.dpad.valueChangedHandler = { [weak self] _, xValue, yValue in
+            self?.handleDirectionalInput(x: xValue, y: yValue)
+        }
+        
+        // Configure left stick - same controls as D-pad
+        gamepad.leftThumbstick.valueChangedHandler = { [weak self] _, xValue, yValue in 
+            self?.handleDirectionalInput(x: xValue, y: yValue)
+        }
+        
+        // A button for firing
+        gamepad.buttonA.pressedChangedHandler = { [weak self] _, _, pressed in
+            if pressed {
+                self?.fireBullet()
+            }
+        }
+        
+        gamepad.buttonB.pressedChangedHandler = { [weak self] _, _, pressed in
+            if pressed {
+                self?.fireBullet()
+            }
+        }
+        
+        gamepad.buttonX.pressedChangedHandler = { [weak self] _, _, pressed in
+            if pressed {
+                self?.thrustDirection = CGFloat(1)
+                self?.showThrustFlame()
+            } else {
+                self?.thrustDirection = 0
+                self?.hideThrustFlame()
+            }
+        }
+        
+        gamepad.buttonY.pressedChangedHandler = { [weak self] _, _, pressed in
+            if pressed {
+                self?.thrustDirection = CGFloat(-1)
+                self?.showReverseFlame()
+            } else {
+                self?.thrustDirection = 0
+                self?.hideReverseFlame()
+            }
+        }
+    }
+    
+    private func handleDirectionalInput(x: Float, y: Float) {
+        // Rotation only for left/right (same as keyboard)
+        
+        
+        if x == -1 {
+            rotationRate = 1.0
+        } else if x == 1 {
+            rotationRate = -1.0
+        } else {
+            rotationRate = 0
+        }
+        
+
+//        if y == 1 {
+//            thrustDirection = CGFloat(y)
+//            showThrustFlame()
+//        } else if y == -1 {
+//            thrustDirection = CGFloat(y)
+//            showReverseFlame()
+//        } else {
+//            thrustDirection = 0
+//            hideThrustFlame()
+//            hideReverseFlame()
+//        }
+        
+
+    }
     
     // Add at top of class
     private func createPlayerShip() -> SKShapeNode {
@@ -249,6 +357,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func sceneDidLoad() {
+        super.sceneDidLoad()
+        setupGameController()  // Add this line
+        
         // Set black background
         backgroundColor = .black
         
@@ -691,67 +802,27 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     override func keyDown(with event: NSEvent) {
-        // Handle escape key for fullscreen/cursor toggle
-        if event.keyCode == 53 {  // Escape key
-            if let window = view?.window {
-                // Pause game for 1 second
-                isPaused = true
-                
-                window.toggleFullScreen(nil)
-                isFullscreen.toggle()
-                
-                if !isFullscreen {
-                    NSCursor.unhide()
-                    // Hide title bar and traffic light buttons but keep window border
-                    window.styleMask = [.titled, .resizable, .fullSizeContentView]
-                    window.titlebarAppearsTransparent = true
-                    window.titleVisibility = .hidden
-                    window.standardWindowButton(.closeButton)?.isHidden = true
-                    window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-                    window.standardWindowButton(.zoomButton)?.isHidden = true
-                    
-                    // Set to 720p while maintaining 16:9 aspect ratio
-                    let size = NSSize(width: 1280, height: 720)
-                    window.setContentSize(size)
-                    window.center()
-                } else {
-                    NSCursor.hide()
-                }
-                
-                // Resume game after 1 second
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
-                    self?.isPaused = false
-                }
-                return
-            }
-        }
-        
+        // Check for game over state first
         if isGameOver {
-            // Only allow spacebar during game over
             if event.keyCode == 49 { // Spacebar
                 restartGame()
             }
-            return  // Ignore all other inputs during game over
+            return  // Ignore other inputs during game over
         }
         
-        // Normal game controls when not game over
         switch event.keyCode {
-        case 123: // Left arrow
-            rotationRate = 2.0
-        case 124: // Right arrow
-            rotationRate = -2.0
-        case 126: // Up arrow
+        case 123, 0:  // Left arrow or 'a'
+            keyboardLeft = true
+            handleRotation()
+        case 124, 2:  // Right arrow or 'd'
+            keyboardRight = true
+            handleRotation()
+        case 126:     // Up arrow
             thrustDirection = 1.0
-            showThrustFlame()
-        case 125: // Down arrow
-            thrustDirection = -0.5
-            showReverseFlame()
-        case 49: // Spacebar
-            let currentTime = CACurrentMediaTime()
-            if currentTime - lastFireTime >= fireRate {
-                lastFireTime = currentTime
-                fireBullet()
-            }
+        case 125:     // Down arrow
+            thrustDirection = -1.0
+        case 49:      // Spacebar
+            fireBullet()
         default:
             break
         }
@@ -759,16 +830,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func keyUp(with event: NSEvent) {
         switch event.keyCode {
-        case 123, 124: // Left or Right arrow
-            rotationRate = 0
-        case 126: // Up arrow
+        case 123, 0:  // Left arrow or 'a'
+            keyboardLeft = false
+            handleRotation()
+        case 124, 2:  // Right arrow or 'd'
+            keyboardRight = false
+            handleRotation()
+        case 126, 125:  // Up or Down arrow
             thrustDirection = 0
-            hideThrustFlame()
-        case 125: // Down arrow
-            thrustDirection = 0
-            hideReverseFlame()
         default:
             break
+        }
+    }
+    
+    private func handleRotation() {
+        if keyboardLeft {
+            rotationRate = 1.0
+        } else if keyboardRight {
+            rotationRate = -1.0
+        } else {
+            rotationRate = 0
         }
     }
     
