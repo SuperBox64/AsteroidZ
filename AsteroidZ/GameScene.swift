@@ -350,8 +350,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         reverseFlameNode?.isHidden = true
         player.addChild(reverseFlameNode!)
         
-        // Try to spawn player safely after everything is set up
-        tryRespawn()
+  
         
         // Setup audio actions with proper volume
         beat1 = SKAction.playSoundFileNamed("beat1.wav", waitForCompletion: false)
@@ -407,7 +406,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Add level label
         setupLevelLabel()
         
-        showTitleScreen()
+        if score == 0 {
+            showTitleScreen()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+                self.tryRespawn()
+            }
+        } else {
+            self.tryRespawn()
+        }
+    
     }
     
     func setupLevelLabel() {
@@ -1200,20 +1207,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             
             // Add throb effect
-            if let currentPlayer = player {
-                let throb = SKAction.sequence([
-                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
-                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
-                ])
-                
-                // Create sequence: 3 throbs followed by final fade to full opacity
-                let throbSequence = SKAction.sequence([
-                    SKAction.repeat(throb, count: 3),
-                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-                ])
-                
-                currentPlayer.run(throbSequence)
-            }
+//            if let currentPlayer = player {
+//                let throb = SKAction.sequence([
+//                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
+//                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
+//                ])
+//                
+//                // Create sequence: 3 throbs followed by final fade to full opacity
+//                let throbSequence = SKAction.sequence([
+//                    SKAction.repeat(throb, count: 3),
+//                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+//                ])
+//                
+//                currentPlayer.run(throbSequence)
+//            }
         } else {
             // Try again after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
@@ -2050,7 +2057,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             createLetterE(at: CGPoint(x: -50, y: 0)),
             createLetterR(at: CGPoint(x: 50, y: 0)),
             createLetterO(at: CGPoint(x: 150, y: 0)),
-            createLetterI(at: CGPoint(x: 250, y: 0)),
+            createLetterI(at: CGPoint(x: 225, y: 0)),
             createLetterD(at: CGPoint(x: 300, y: 0)),
             createLetterZ(at: CGPoint(x: 400, y: 0))
         ]
@@ -2072,32 +2079,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Glow animation
         let glow = SKAction.sequence([
-            // Show title for 3 seconds with glow effect
-            SKAction.customAction(withDuration: 3.0) { node, time in
-                let progress = time / 3.0
+            
+            SKAction.customAction(withDuration: 0.5) { node, time in
+                let progress = time / 2.0
+                let alpha = 0.0 + sin(progress * .pi * 2) * 0.5
+                node.alpha = alpha
+            },
+            
+            SKAction.customAction(withDuration: 1.0) { node, time in
+                let progress = time / 2.0
                 let alpha = 0.5 + sin(progress * .pi * 2) * 0.5
                 node.alpha = alpha
             },
-            // Fade out
-            SKAction.fadeOut(withDuration: 0.5),
-            // Remove title screen
             SKAction.run { [weak self] in
                 self?.titleScreen?.removeFromParent()
-            },
-            // Longer pause before starting game (3 seconds)
-            SKAction.wait(forDuration: 3.0),
-            // Start game and spawn ship
-            SKAction.run { [weak self] in
-                self?.startGame()
-                
-                // Add spawn effect for player
-                if let player = self?.player {
-                    let spawnEffect = SKAction.sequence([
-                        SKAction.fadeAlpha(to: 0.2, duration: 0.2),
-                        SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-                    ])
-                    player.run(SKAction.repeat(spawnEffect, count: 3))
-                }
             }
         ])
         
@@ -2196,39 +2191,5 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         path.addLine(to: CGPoint(x: -25, y: -50))
         path.addLine(to: CGPoint(x: 25, y: -50))
         return (path, pos)
-    }
-    
-    private func startGame() {
-        // Reset game state
-        score = 0
-        lives = 5
-        level = 1
-        isGameOver = false
-        
-        // Clear any existing asteroids
-        asteroids.forEach { $0.removeFromParent() }
-        asteroids.removeAll()
-        
-        // Create player if needed
-        if player == nil {
-            player = createPlayerShip()
-            addChild(player!)
-        }
-        
-        // Reset player position
-        player?.position = CGPoint(x: frame.midX, y: frame.midY)
-        player?.isHidden = false
-        
-        // Recreate flame effects
-        recreateFlameEffects()
-        
-        // Spawn initial asteroids for level 1
-        for _ in 0..<10 {
-            spawnAsteroid(size: .large)
-        }
-        
-        // Start background beats
-        beatInterval = maxBeatInterval
-        startBackgroundBeats()
     }
 }
