@@ -804,7 +804,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     override func keyDown(with event: NSEvent) {
         // Check for game over state first
         if isGameOver {
-            if event.keyCode == 49 { // Spacebar
+            if event.keyCode == 49 || // Spacebar
+               event.keyCode == 23 || // 5 key
+               event.keyCode == 8 {   // C key
+                titleScreen?.removeFromParent()  // Remove title screen
                 restartGame()
             }
             return  // Ignore other inputs during game over
@@ -2205,25 +2208,49 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create container for all title lines
         titleScreen = SKShapeNode()
         
-        // Vector paths for each letter using straight lines
-        let letters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterA(at: CGPoint(x: -350, y: 0)),
-            createLetterS(at: CGPoint(x: -250, y: 0)),
-            createLetterT(at: CGPoint(x: -150, y: 0)),
-            createLetterE(at: CGPoint(x: -50, y: 0)),
-            createLetterR(at: CGPoint(x: 50, y: 0)),
-            createLetterO(at: CGPoint(x: 150, y: 0)),
-            createLetterI(at: CGPoint(x: 225, y: 0)),
-            createLetterD(at: CGPoint(x: 300, y: 0)),
-            createLetterZ(at: CGPoint(x: 400, y: 0))
+        // ASTEROIDZ title (keep existing code)
+        let titleLetters: [(path: CGMutablePath, position: CGPoint)] = [
+            createLetterA(at: CGPoint(x: -350, y: 100)),  // Moved up by adding 100 to y
+            createLetterS(at: CGPoint(x: -250, y: 100)),
+            createLetterT(at: CGPoint(x: -150, y: 100)),
+            createLetterE(at: CGPoint(x: -50, y: 100)),
+            createLetterR(at: CGPoint(x: 50, y: 100)),
+            createLetterO(at: CGPoint(x: 150, y: 100)),
+            createLetterI(at: CGPoint(x: 225, y: 100)),
+            createLetterD(at: CGPoint(x: 300, y: 100)),
+            createLetterZ(at: CGPoint(x: 400, y: 100))
         ]
         
-        // Create and add each letter
-        for (path, position) in letters {
+        // Add ASTEROIDZ letters
+        for (path, position) in titleLetters {
             let letter = SKShapeNode(path: path)
             letter.strokeColor = .white
             letter.lineWidth = 2.0
             letter.position = position
+            titleScreen?.addChild(letter)
+        }
+        
+        // INSERT COIN text (50% size, below ASTEROIDZ)
+        let insertLetters: [(path: CGMutablePath, position: CGPoint)] = [
+            createLetterI(at: CGPoint(x: -175, y: -50)),
+            createLetterN(at: CGPoint(x: -125, y: -50)),
+            createLetterS(at: CGPoint(x: -75, y: -50)),
+            createLetterE(at: CGPoint(x: -25, y: -50)),
+            createLetterR(at: CGPoint(x: 25, y: -50)),
+            createLetterT(at: CGPoint(x: 75, y: -50)),
+            createLetterC(at: CGPoint(x: 150, y: -50)),
+            createLetterO(at: CGPoint(x: 200, y: -50)),
+            createLetterI(at: CGPoint(x: 250, y: -50)),
+            createLetterN(at: CGPoint(x: 300, y: -50))
+        ]
+        
+        // Add INSERT COIN letters
+        for (path, position) in insertLetters {
+            let letter = SKShapeNode(path: path)
+            letter.strokeColor = .white
+            letter.lineWidth = 2.0
+            letter.position = position
+            letter.setScale(0.5)  // 50% size
             titleScreen?.addChild(letter)
         }
         
@@ -2233,19 +2260,22 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             addChild(titleScreen)
         }
         
-        // Glow animation
-        let glow = SKAction.sequence([
-            SKAction.customAction(withDuration: 1.0) { node, time in
-                let progress = time / 2.0
-                let alpha = 0.5 + sin(progress * .pi * 2) * 0.5
-                node.alpha = alpha
-            },
+        // Make INSERT COIN blink
+        let blink = SKAction.sequence([
+            SKAction.wait(forDuration: 0.5),
             SKAction.run { [weak self] in
-                self?.titleScreen?.removeFromParent()
+                self?.titleScreen?.children.forEach { node in
+                    if node.position.y < 0 {  // Only affect INSERT COIN letters
+                        node.isHidden.toggle()
+                    }
+                }
             }
         ])
         
-        titleScreen?.run(glow)
+        titleScreen?.run(SKAction.repeatForever(blink))
+        
+        // Wait for spacebar
+        isGameOver = true
     }
     
     // Helper functions to create letter paths
@@ -2339,6 +2369,64 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         path.addLine(to: CGPoint(x: 25, y: 50))
         path.addLine(to: CGPoint(x: -25, y: -50))
         path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterH(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.move(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        return (path, pos)
+    }
+    
+    private func createLetterG(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        return (path, pos)
+    }
+        
+    private func createLetterC(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterM(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+    
+    private func createLetterV(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        return (path, pos)
+    }
+    
+    private func createLetterN(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
         return (path, pos)
     }
     
