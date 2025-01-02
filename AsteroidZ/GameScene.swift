@@ -803,7 +803,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func keyDown(with event: NSEvent) {
         // Check for game over state first
-        if isGameOver {
+            if isGameOver {
             if event.keyCode == 49 || // Spacebar
                event.keyCode == 23 || // 5 key
                event.keyCode == 8 {   // C key
@@ -2208,9 +2208,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create container for all title lines
         titleScreen = SKShapeNode()
         
-        // ASTEROIDZ title (keep existing code)
+        // Create container specifically for ASTEROIDZ title
+        let asteroidzContainer = SKShapeNode()
+        
+        // ASTEROIDZ title letters
         let titleLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterA(at: CGPoint(x: -350, y: 100)),  // Moved up by adding 100 to y
+            createLetterA(at: CGPoint(x: -350, y: 100)),
             createLetterS(at: CGPoint(x: -250, y: 100)),
             createLetterT(at: CGPoint(x: -150, y: 100)),
             createLetterE(at: CGPoint(x: -50, y: 100)),
@@ -2221,16 +2224,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             createLetterZ(at: CGPoint(x: 400, y: 100))
         ]
         
-        // Add ASTEROIDZ letters
+        // Add ASTEROIDZ letters to its container
         for (path, position) in titleLetters {
             let letter = SKShapeNode(path: path)
             letter.strokeColor = .white
             letter.lineWidth = 2.0
             letter.position = position
-            titleScreen?.addChild(letter)
+            asteroidzContainer.addChild(letter)
         }
         
-        // INSERT COIN text (50% size, below ASTEROIDZ)
+        // Add ASTEROIDZ container to title screen
+        titleScreen?.addChild(asteroidzContainer)
+        
+        // Add INSERT COIN letters directly to title screen
         let insertLetters: [(path: CGMutablePath, position: CGPoint)] = [
             createLetterI(at: CGPoint(x: -175, y: -50)),
             createLetterN(at: CGPoint(x: -125, y: -50)),
@@ -2244,7 +2250,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             createLetterN(at: CGPoint(x: 300, y: -50))
         ]
         
-        // Add INSERT COIN letters
         for (path, position) in insertLetters {
             let letter = SKShapeNode(path: path)
             letter.strokeColor = .white
@@ -2256,11 +2261,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Position title screen
         titleScreen?.position = CGPoint(x: frame.midX, y: frame.midY)
-        if let titleScreen = titleScreen {
-            addChild(titleScreen)
-        }
+        addChild(titleScreen!)
         
-        // Make INSERT COIN blink
+        // Glow animation for ASTEROIDZ only
+        let glow = SKAction.sequence([
+            SKAction.customAction(withDuration: 4.0) { node, time in
+                let progress = time / 2.0
+                let alpha = 0.775 + sin(progress * .pi * 2) * 0.075  // Oscillates between 0.7 and 0.85
+                node.alpha = alpha
+            }
+        ])
+        
+        // Apply glow to ASTEROIDZ container only
+        asteroidzContainer.run(SKAction.repeatForever(glow))
+        
+        // Blink effect for INSERT COIN letters only
         let blink = SKAction.sequence([
             SKAction.wait(forDuration: 0.5),
             SKAction.run { [weak self] in
