@@ -523,9 +523,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         if score == 0 {
             showTitleScreen()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
-                self.tryRespawn()
-            }
+//            DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+//                self.tryRespawn()
+//            }
         } else {
             self.tryRespawn()
         }
