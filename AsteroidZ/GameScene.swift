@@ -132,7 +132,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var beatTimer: Timer?
     private var currentBeat = 1
     private var beatInterval: TimeInterval = 1.0
-    private let minBeatInterval: TimeInterval = 0.1
+    private let minBeatInterval: TimeInterval = 0.3
     private let maxBeatInterval: TimeInterval = 1.0
     
     // KEEP only this at class level
@@ -153,6 +153,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at top of class
     private var baseSaucerInterval: TimeInterval = 20.0  // Base spawn interval
     private var minSaucerInterval: TimeInterval = 5.0    // Minimum spawn interval
+    private var maxSaucerInterval: TimeInterval = 15.0   // Maximum spawn interval
     
     // Add at class level
     private var gameOverLabels: [SKLabelNode] = []
@@ -171,7 +172,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // At class level
     private var titleScreen: SKShapeNode?
     
-    // Add at class level
+    // At class level
+    private var saucerSpawnEnabled = true  // Track if spawning is enabled
+    
+    // Add at top of class
     private func createPlayerShip() -> SKShapeNode {
         let path = CGMutablePath()
         path.move(to: CGPoint(x: 0, y: 20))    // Top point
@@ -502,6 +506,68 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func spawnAsteroid(size: AsteroidSize) {
+        // Try to find a safe spawn position
+        var safePosition: CGPoint?
+        let safeRadius: CGFloat = 100  // Minimum distance between asteroids
+        let centerSafeRadius: CGFloat = 200  // Keep large asteroids away from center
+        let maxAttempts = 10  // Maximum attempts to find safe position
+        
+        for _ in 0..<maxAttempts {
+            // Generate random position
+            let x = CGFloat.random(in: 0...frame.width)
+            let y = CGFloat.random(in: 0...frame.height)
+            let testPosition = CGPoint(x: x, y: y)
+            
+            // Check if position is safe
+            var positionIsSafe = true
+            
+            // For large asteroids, ensure they're away from center
+            if size == .large {
+                let distanceFromCenter = hypot(testPosition.x - frame.midX,
+                                             testPosition.y - frame.midY)
+                if distanceFromCenter < centerSafeRadius {
+                    positionIsSafe = false
+                    continue
+                }
+                
+                // Check distance from other large asteroids
+                for asteroid in asteroids where asteroid.userData?["size"] as? AsteroidSize == .large {
+                    let distance = hypot(asteroid.position.x - testPosition.x,
+                                      asteroid.position.y - testPosition.y)
+                    if distance < safeRadius {
+                        positionIsSafe = false
+                        break
+                    }
+                }
+            }
+            
+            if positionIsSafe {
+                safePosition = testPosition
+                break
+            }
+        }
+        
+        // If no safe position found, force spawn at edge of screen
+        let spawnPosition: CGPoint
+        if safePosition == nil && size == .large {
+            let angle = CGFloat.random(in: 0...(2 * .pi))
+            spawnPosition = CGPoint(
+                x: frame.midX + cos(angle) * centerSafeRadius,
+                y: frame.midY + sin(angle) * centerSafeRadius
+            )
+        } else {
+            spawnPosition = safePosition ?? CGPoint(x: frame.midX, y: frame.midY)
+        }
+        
+        // Create asteroid at safe position
+        let asteroid = createAsteroid(size: size)
+        asteroid.position = spawnPosition
+        
+        addChild(asteroid)
+        asteroids.append(asteroid)
+    }
+    
+    func createAsteroid(size: AsteroidSize) -> SKShapeNode {
         let asteroidPath = createAsteroidPath(radius: size.radius, points: size.points)
         let asteroid = SKShapeNode(path: asteroidPath)
         asteroid.strokeColor = .white
@@ -567,11 +633,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Toggle for next spawn
         isNextAster.toggle()
         
-        asteroids.append(asteroid)
-        addChild(asteroid)
-        
-        // Update beat tempo when new asteroid is added
-        updateBeatTempo()
+        return asteroid
     }
     
     // Add helper function to check for overlap
@@ -1170,14 +1232,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Add throb effect
             if let currentPlayer = player {
                 let throb = SKAction.sequence([
-                    SKAction.fadeAlpha(to: 0.2, duration: 0.2),
-                    SKAction.fadeAlpha(to: 0.8, duration: 0.2)
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
+                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
                 ])
                 
                 // Create sequence: 3 throbs followed by final fade to full opacity
                 let throbSequence = SKAction.sequence([
-                    SKAction.repeat(throb, count: 2),
-                    SKAction.fadeAlpha(to: 1.0, duration: 0.4)  // Final fade to full opacity
+                    SKAction.repeat(throb, count: 3),
+                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)  // Final fade to full opacity
                 ])
                 
                 currentPlayer.run(throbSequence)
@@ -1365,6 +1427,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         startBackgroundBeats()
         
         level = 1  // Reset level
+        
+        saucerSpawnEnabled = true
+        scheduleSaucerSpawn()  // Start initial saucer spawn cycle
     }
     
     func startBackgroundBeats() {
@@ -1506,8 +1571,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func spawnSaucer(forcedSize: SaucerSize? = nil) {
-        // Don't spawn if one already exists
-        if activeSaucer != nil { return }
+        guard activeSaucer == nil, saucerSpawnEnabled else { return }
         
         let size = forcedSize ?? decideSaucerSize()
         let saucer = createSaucer(size: size)
@@ -1675,6 +1739,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Remove the saucer
         saucer.removeFromParent()
         activeSaucer = nil
+        
+        // Schedule next saucer spawn immediately after destruction
+        if saucerSpawnEnabled {
+            scheduleSaucerSpawn()
+        }
     }
     
     func createSaucerDebris(at position: CGPoint, numPieces: Int) -> [SKShapeNode] {
@@ -1989,7 +2058,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     func recreateFlameEffects() {
         // Remove old flames if they exist
-        thrustNode?.removeFromParent()
+        if let thrust = thrustNode {
+            thrust.removeFromParent()
+        }
         reverseFlameNode?.removeFromParent()
         
         // Recreate forward thrust flame
@@ -2079,13 +2150,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Glow animation
         let glow = SKAction.sequence([
-            
-            SKAction.customAction(withDuration: 0.5) { node, time in
-                let progress = time / 2.0
-                let alpha = 0.0 + sin(progress * .pi * 2) * 0.5
-                node.alpha = alpha
-            },
-            
             SKAction.customAction(withDuration: 1.0) { node, time in
                 let progress = time / 2.0
                 let alpha = 0.5 + sin(progress * .pi * 2) * 0.5
@@ -2191,5 +2255,32 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         path.addLine(to: CGPoint(x: -25, y: -50))
         path.addLine(to: CGPoint(x: 25, y: -50))
         return (path, pos)
+    }
+    
+    // In spawnSaucer function or where saucer timing is handled
+    func scheduleSaucerSpawn() {
+        // Cancel any existing spawn
+        removeAction(forKey: "spawnSaucer")
+        
+        // Calculate spawn interval based on number of asteroids
+        let asteroidCount = asteroids.count
+        let maxAsteroids: CGFloat = 10.0  // Expected maximum number of asteroids
+        
+        // Ensure interval multiplier is valid
+        let intervalMultiplier = max(0.3, CGFloat(asteroidCount) / maxAsteroids)
+        let maxInterval = maxSaucerInterval * intervalMultiplier
+        
+        // Ensure range is valid (min must be less than max)
+        let adjustedInterval = TimeInterval.random(
+            in: min(minSaucerInterval, maxInterval)...maxInterval
+        )
+        
+        let waitAction = SKAction.wait(forDuration: adjustedInterval)
+        let spawnAction = SKAction.run { [weak self] in
+            self?.spawnSaucer()
+            self?.scheduleSaucerSpawn()  // Schedule next spawn
+        }
+        
+        run(SKAction.sequence([waitAction, spawnAction]), withKey: "spawnSaucer")
     }
 }

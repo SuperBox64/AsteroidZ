@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #010101;
+      }
+
+      .cls-2 {
+        fill: #fff;
+      }
+
+      .cls-3 {
+        stroke-miterlimit: 2.8;
+      }
+
+      .cls-3, .cls-4 {
+        fill: none;
+        stroke: #fff;
+        stroke-width: 12px;
+      }
+
+      .cls-4 {
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <rect class="cls-1" x="60" y="60" width="904" height="904" rx="180" ry="180"/>
+  <path class="cls-3" d="M647.4,220.8h141l70.5,136.3-70.5,136.3-141-68.2-70.5-68.2,70.5-136.3v.1Z"/>
+  <path class="cls-4" d="M526.6,568.5l-111.2,305h222.5l-111.2-305h-.1Z"/>
+  <g>
+    <ellipse class="cls-2" cx="524.7" cy="468.6" rx="11.1" ry="14.3"/>
+    <ellipse class="cls-2" cx="524.7" cy="354.3" rx="8.9" ry="11.4"/>
+    <ellipse class="cls-2" cx="524.7" cy="240" rx="6.7" ry="8.6"/>
+  </g>
+  <path class="cls-3" d="M355,406.2h83.7l41.8,81-41.8,81-83.7-40.5-41.8-40.5,41.8-81Z"/>
+  <path class="cls-3" d="M436.3,177.4l-10.9,140.5-141.4,59.7-130.5-80.8,78.9-135.3,73.4-65,130.5,80.8v.1Z"/>
+</svg>
