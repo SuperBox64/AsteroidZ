@@ -29,18 +29,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     private var score: Int = 0 {
         didSet {
-            // Don't update score if title screen is present
-            if titleScreen != nil {
-                score = 0  // Reset back to 0
-                return
-            }
-            
             scoreLabel.text = "SCORE \(score)"
             
             // Check for extra ship bonus
             if score >= lastExtraShipScore + extraShipBonus {
                 awardExtraShip()
-                lastExtraShipScore = score - (score % extraShipBonus)
+                lastExtraShipScore = score - (score % extraShipBonus)  // Reset to last milestone
             }
             
             // Update high score if needed
@@ -353,8 +347,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Use simpler path for physics body
         saucer.physicsBody = SKPhysicsBody(polygonFrom: path)
         saucer.physicsBody?.categoryBitMask = saucerCategory
-        saucer.physicsBody?.collisionBitMask = asterCategory | roidCategory  // Collide with both asteroid types
-        saucer.physicsBody?.contactTestBitMask = bulletCategory | asterCategory | roidCategory  // Test contact with both
+        saucer.physicsBody?.collisionBitMask = asterCategory  // Add collision with Aster type
+        saucer.physicsBody?.contactTestBitMask = bulletCategory | asterCategory  // Test contact with bullets and Asters
         saucer.physicsBody?.affectedByGravity = false
         saucer.physicsBody?.linearDamping = 0
         saucer.physicsBody?.angularDamping = 0
@@ -364,10 +358,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func sceneDidLoad() {
         super.sceneDidLoad()
-        
-        // Add at top after super.sceneDidLoad()
-        physicsWorld.speed = 1.0  // Ensure physics is running at normal speed
-        physicsWorld.contactDelegate = self
+        setupGameController()  // Add this line
         
         // Set black background
         backgroundColor = .black
@@ -1267,16 +1258,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func tryRespawn() {
-        // Don't respawn if title screen is showing
-        if titleScreen != nil {
-            return
-        }
-        
-        // Rest of existing tryRespawn code...
-        if isRespawning { return }
-        isRespawning = true
-        // ... rest of the function
-        
         // Create new player ship if needed
         if player == nil {
             player = createPlayerShip()
@@ -1433,27 +1414,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
         
-        // Handle asteroids (both types) hitting ship
-        if collision == (shipCategory | asterCategory) || 
-           collision == (shipCategory | roidCategory) {
-            let ship = (contact.bodyA.categoryBitMask == shipCategory) ? 
-                contact.bodyA.node : contact.bodyB.node
+        // Add handling for Aster hitting saucer
+        if collision == (asterCategory | saucerCategory) {
+            // Get the saucer node
+            let saucer = (contact.bodyA.categoryBitMask == saucerCategory) ? 
+                         contact.bodyA.node as? SKShapeNode : 
+                         contact.bodyB.node as? SKShapeNode
             
-            if let ship = ship as? SKShapeNode {
-                shipDestroyed(ship)
-            }
-        }
-        
-        // Handle saucer bullet hitting ship
-        if collision == (saucerBulletCategory | shipCategory) {
-            let bullet = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
-                contact.bodyA.node : contact.bodyB.node
-            let ship = (contact.bodyA.categoryBitMask == shipCategory) ? 
-                contact.bodyA.node : contact.bodyB.node
-            
-            bullet?.removeFromParent()
-            if let ship = ship as? SKShapeNode {
-                shipDestroyed(ship)
+            // Destroy the saucer
+            if let saucer = saucer {
+                saucerDestroyed(saucer)
             }
         }
         
@@ -1507,73 +1477,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Show score message
             showMessage("+100", duration: 1.0)
         }
-        
-        // Handle saucer bullet hitting asteroid - split but no score
-        if collision == (saucerBulletCategory | asterCategory) || 
-           collision == (saucerBulletCategory | roidCategory) {
-            let bullet = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
-                contact.bodyA.node : contact.bodyB.node
-            let asteroid = (contact.bodyA.categoryBitMask == saucerBulletCategory) ? 
-                contact.bodyB.node : contact.bodyA.node
-            
-            bullet?.removeFromParent()
-            if let asteroid = asteroid as? SKShapeNode {
-                splitAsteroidNoScore(asteroid)
-            }
-        }
-        
-        // Handle saucer colliding with asteroid - destroy both
-        if collision == (saucerCategory | asterCategory) || 
-           collision == (saucerCategory | roidCategory) {
-            let saucer = (contact.bodyA.categoryBitMask == saucerCategory) ? 
-                contact.bodyA.node : contact.bodyB.node
-            let asteroid = (contact.bodyA.categoryBitMask == saucerCategory) ? 
-                contact.bodyB.node : contact.bodyA.node
-            
-            if let saucer = saucer as? SKShapeNode {
-                saucerDestroyed(saucer)
-            }
-            if let asteroid = asteroid as? SKShapeNode {
-                splitAsteroid(asteroid)
-            }
-        }
-    }
-    
-    // New function: Split asteroid without awarding score
-    func splitAsteroidNoScore(_ asteroid: SKShapeNode) {
-        guard let size = asteroid.userData?["size"] as? AsteroidSize else { return }
-        
-        // Create smaller asteroids based on current size
-        let newSize: AsteroidSize?
-        switch size {
-        case .large: newSize = .medium
-        case .medium: newSize = .small
-        case .small: newSize = nil
-        }
-        
-        // Play sound and create debris
-        switch size {
-        case .large: run(bangLargeSound)
-        case .medium: run(bangMediumSound)
-        case .small: run(bangSmallSound)
-        }
-        
-        createDebrisEffect(at: asteroid.position, isMedium: size == .medium)
-        
-        // Remove original asteroid
-        if let index = asteroids.firstIndex(of: asteroid) {
-            asteroids.remove(at: index)
-        }
-        asteroid.removeFromParent()
-        
-        // Spawn smaller asteroids if needed
-        if let newSize = newSize {
-            for _ in 0..<2 {
-                spawnAsteroid(size: newSize)
-            }
-        }
-        
-        // Don't check level completion - this wasn't a player kill
     }
     
     func restartGame() {
@@ -1868,44 +1771,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func removeSaucer() {
-        // Stop shooting first
+        // Stop shooting
         saucerShootTimer?.invalidate()
         saucerShootTimer = nil
         
         if let saucer = activeSaucer {
-            // Disable collisions while moving off screen
-            saucer.physicsBody?.categoryBitMask = 0
-            saucer.physicsBody?.contactTestBitMask = 0
-            saucer.physicsBody?.collisionBitMask = 0
-            
-            // Find nearest edge and calculate exit point
-            let pos = saucer.position
-            let edges = [
-                (point: CGPoint(x: -100, y: pos.y), dist: abs(pos.x - (-100))),                    // Left
-                (point: CGPoint(x: frame.maxX + 100, y: pos.y), dist: abs(frame.maxX + 100 - pos.x)), // Right
-                (point: CGPoint(x: pos.x, y: -100), dist: abs(pos.y - (-100))),                    // Bottom
-                (point: CGPoint(x: pos.x, y: frame.maxY + 100), dist: abs(frame.maxY + 100 - pos.y))  // Top
-            ]
-            
-            // Find closest edge
-            let exitPoint = edges.min(by: { $0.dist < $1.dist })?.point ?? CGPoint(x: -100, y: pos.y)
-            
-            // Move off screen gradually
-            let moveOffScreen = SKAction.move(to: exitPoint, duration: 3.0)
-            moveOffScreen.timingMode = .easeOut  // Smooth deceleration
-            
-            let remove = SKAction.run { [weak self] in
-                self?.activeSaucer?.removeFromParent()
-                self?.activeSaucer = nil
-                self?.saucerSound?.removeFromParent()
-                self?.saucerSound = nil
-                
-                // Re-enable saucer spawning and schedule next spawn
-                self?.saucerSpawnEnabled = true
-                self?.scheduleSaucerSpawn()
-            }
-            
-            saucer.run(SKAction.sequence([moveOffScreen, remove]))
+            saucerDestroyed(saucer)  // Use new destruction effect
         }
     }
     
@@ -1990,50 +1861,23 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let isLarge = saucer.xScale == 1.0
         let speed: CGFloat = isLarge ? 100 : 150
         
-        // Check for nearby asteroids
-        let safeDistance: CGFloat = 100  // Keep this distance from asteroids
-        var nearestAsteroid: SKShapeNode?
-        var nearestDistance: CGFloat = .infinity
+        // Random angle between -45 and 45 degrees (keep somewhat horizontal)
+        let angle = CGFloat.random(in: -CGFloat.pi/4...CGFloat.pi/4)
         
-        for asteroid in asteroids {
-            let distance = hypot(asteroid.position.x - saucer.position.x,
-                               asteroid.position.y - saucer.position.y)
-            if distance < nearestDistance {
-                nearestDistance = distance
-                nearestAsteroid = asteroid
-            }
-        }
-        
-        // Calculate angle based on screen position and nearest asteroid
-        var angle: CGFloat
-        
-        if nearestDistance < safeDistance, let asteroid = nearestAsteroid {
-            // Avoid asteroid by moving away from it
-            let dx = saucer.position.x - asteroid.position.x
-            let dy = saucer.position.y - asteroid.position.y
-            angle = atan2(dy, dx)
+        // If saucer is on the right side of screen, bias movement left
+        // If saucer is on the left side of screen, bias movement right
+        let horizontalBias: CGFloat
+        if saucer.position.x > frame.width/2 {
+            horizontalBias = -1
         } else {
-            // Normal edge-following behavior
-            if saucer.position.x < frame.width * 0.25 {
-                // Near left edge, bias movement right
-                angle = CGFloat.random(in: -CGFloat.pi/6...CGFloat.pi/6)
-            } else if saucer.position.x > frame.width * 0.75 {
-                // Near right edge, bias movement left
-                angle = CGFloat.pi + CGFloat.random(in: -CGFloat.pi/6...CGFloat.pi/6)
-            } else {
-                // In middle, slight horizontal bias
-                angle = CGFloat.random(in: -CGFloat.pi/4...CGFloat.pi/4)
-                if saucer.position.x > frame.width/2 {
-                    angle += CGFloat.pi  // Bias left if on right side
-                }
-            }
+            horizontalBias = 1
         }
         
-        // Set new velocity
-        saucer.physicsBody?.velocity = CGVector(
-            dx: cos(angle) * speed,
-            dy: sin(angle) * speed
-        )
+        // Calculate new velocity
+        let dx = cos(angle) * speed * horizontalBias
+        let dy = sin(angle) * speed
+        
+        saucer.physicsBody?.velocity = CGVector(dx: dx, dy: dy)
     }
     
     func wrapSaucer(_ saucer: SKShapeNode) {
@@ -2626,61 +2470,5 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         run(SKAction.sequence([waitAction, spawnAction]), withKey: "spawnSaucer")
-    }
-    
-    // Add createDebrisEffect function
-    func createDebrisEffect(at position: CGPoint, isMedium: Bool) {
-        let numPieces = isMedium ? 6 : 8
-        let maxSpeed: CGFloat = isMedium ? 100 : 150
-        
-        for _ in 0..<numPieces {
-            let line = SKShapeNode()
-            let path = CGMutablePath()
-            
-            // Random line length
-            let length = CGFloat.random(in: 5...15)
-            path.move(to: .zero)
-            path.addLine(to: CGPoint(x: length, y: 0))
-            
-            line.path = path
-            line.strokeColor = .white
-            line.lineWidth = 1.0
-            line.position = position
-            line.zRotation = CGFloat.random(in: 0...(2 * .pi))
-            addChild(line)
-            
-            // Random movement
-            let angle = CGFloat.random(in: 0...(2 * .pi))
-            let speed = CGFloat.random(in: 50...maxSpeed)
-            let dx = cos(angle) * speed
-            let dy = sin(angle) * speed
-            
-            let move = SKAction.move(by: CGVector(dx: dx, dy: dy), duration: 1.0)
-            let fade = SKAction.fadeOut(withDuration: 1.0)
-            let group = SKAction.group([move, fade])
-            let remove = SKAction.removeFromParent()
-            
-            line.run(SKAction.sequence([group, remove]))
-        }
-    }
-    
-    func shipDestroyed(_ ship: SKShapeNode) {
-        createDebrisEffect(at: ship.position, isMedium: true)
-        run(bangMediumSound)
-        
-        lives -= 1
-        ship.removeFromParent()
-        
-        if lives > 0 {
-            tryRespawn()
-        } else {
-            gameOver()
-        }
-    }
-    
-    // Add this function for game over state
-    func gameOver() {
-        isGameOver = true
-        showTitleScreen()
     }
 }
