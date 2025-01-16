@@ -27,14 +27,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var livesLabel: SKLabelNode!
     private var highScoreLabel: SKLabelNode!
     
+    // Add these properties at the top of the class
+    private var scoreNodes: [SKShapeNode] = []
+    private var highScoreNodes: [SKShapeNode] = []
+    private var livesNodes: [SKShapeNode] = []
+    private let extraShipBonus = 10000    // Points needed for extra ship (changed from 500)
+    
     private var score: Int = 0 {
         didSet {
-            scoreLabel.text = "SCORE \(score)"
+            updateScore()
             
             // Check for extra ship bonus
             if score >= lastExtraShipScore + extraShipBonus {
                 awardExtraShip()
-                lastExtraShipScore = score - (score % extraShipBonus)  // Reset to last milestone
+                lastExtraShipScore = score - (score % extraShipBonus)
             }
             
             // Update high score if needed
@@ -46,12 +52,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private var lives: Int = 5 {
         didSet {
-            livesLabel.text = "LIVES \(lives)"
+            updateLives()
         }
     }
     private var highScore: Int = UserDefaults.standard.integer(forKey: "highScore") {
         didSet {
-            highScoreLabel.text = "HIGH SCORE \(highScore)"
+            updateHighScore()
         }
     }
     
@@ -84,10 +90,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bangSmallSound: SKAction!
     private var extraShipSound: SKAction!
     private var lastExtraShipScore = 0  // Track when we last gave an extra ship
-    private let extraShipBonus = 500    // Points needed for extra ship
-    private var thrustSound: SKAction!
-    private let thrustSoundKey = "thrustSound"  // Unique key for the sound action
-    private var thrustSoundNode: SKAudioNode?  // To track and stop the sound
     
     // Add property to track wrapped sprites
     private var wrappedSprites: [SKNode: SKNode] = [:]
@@ -160,12 +162,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var gameOverLabels: [SKLabelNode] = []
     
     // Add at class level
-    private var level: Int = 1 {
-        didSet {
-            levelLabel.text = "LEVEL \(level)"
-        }
-    }
-    private var levelLabel: SKLabelNode!
+    private var level: Int = 1
     
     // Add at class level
     private var isFullscreen = true  // Start in fullscreen mode
@@ -182,6 +179,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at top of class
     private var keyboardLeft = false
     private var keyboardRight = false
+    
+    // Add back the thrust sound properties
+    private var thrustSound: SKAction!
+    private let thrustSoundKey = "thrustSound"  // Unique key for the sound action
+    private var thrustSoundNode: SKAudioNode?  // To track and stop the sound
     
     // Add this function to GameScene class
     func setupGameController() {
@@ -304,7 +306,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ship.physicsBody?.affectedByGravity = false
         ship.physicsBody?.isDynamic = true
         ship.physicsBody?.usesPreciseCollisionDetection = true
-        
+        ship.name = "PlayerShip"
         return ship
     }
     
@@ -352,7 +354,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         saucer.physicsBody?.affectedByGravity = false
         saucer.physicsBody?.linearDamping = 0
         saucer.physicsBody?.angularDamping = 0
-        
+        saucer.name = "Saucer"
         return saucer
     }
     
@@ -402,7 +404,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.physicsBody?.affectedByGravity = false
         player.physicsBody?.isDynamic = true
         player.physicsBody?.usesPreciseCollisionDetection = true
-        
+        player.name = "Loaded PlayerShip"
         player.alpha = 0  // Start completely invisible
         player.isHidden = true  // Hide it completely
         addChild(player)
@@ -412,32 +414,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             spawnAsteroid(size: .large)
         }
         
-        // Add score label with Avenir font
-        scoreLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-        scoreLabel.text = "SCORE 0"
-        scoreLabel.fontSize = 20
-        scoreLabel.position = CGPoint(x: 70, y: frame.maxY - 30)
-        scoreLabel.horizontalAlignmentMode = .left
-        scoreLabel.alpha = 0.5
-        addChild(scoreLabel)
-        
-        // Add lives label with Avenir font
-        livesLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-        livesLabel.text = "LIVES 5"
-        livesLabel.fontSize = 20
-        livesLabel.position = CGPoint(x: frame.maxX - 70, y: frame.maxY - 30)
-        livesLabel.horizontalAlignmentMode = .right
-        livesLabel.alpha = 0.5
-        addChild(livesLabel)
-        
-        // Add high score label with Avenir font
-        highScoreLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-        highScoreLabel.text = "HIGH SCORE \(highScore)"
-        highScoreLabel.fontSize = 20
-        highScoreLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 30)
-        highScoreLabel.horizontalAlignmentMode = .center
-        highScoreLabel.alpha = 0.5
-        addChild(highScoreLabel)
+        // Initialize the displays with vector graphics
+        updateScore()
+        updateHighScore()
+        updateLives()
         
         // Create thrust visual
         let thrustPath = CGMutablePath()
@@ -513,7 +493,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         intervalChangedLabel = SKLabelNode(fontNamed: "Avenir-Medium")
         intervalChangedLabel.fontSize = 20
         intervalChangedLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 120)
-        intervalChangedLabel.fontColor = .red
+        //intervalChangedLabel.fontColor = .red
         intervalChangedLabel.alpha = 0.5  // 50% opacity
         intervalChangedLabel.isHidden = !showDebugInfo
         addChild(intervalChangedLabel)
@@ -532,14 +512,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     }
     
+    private func updateLevel() {
+        // Remove existing level nodes
+        children.filter { $0.name == "levelNode" }.forEach { $0.removeFromParent() }
+        
+        // Draw level number at bottom left
+        let levelNode = drawVectorNumber(level, at: CGPoint(x: size.width * 0.05, y: size.height * 0.05))
+        levelNode.name = "levelNode"
+        addChild(levelNode)
+    }
+    
+    // Update the setupLevelLabel function to use vector numbers instead
     func setupLevelLabel() {
-        levelLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-        levelLabel.text = "LEVEL \(level)"
-        levelLabel.fontSize = 20
-        levelLabel.position = CGPoint(x: 70, y: 50)  // Bottom left
-        levelLabel.horizontalAlignmentMode = .left
-        levelLabel.alpha = 0.5
-        addChild(levelLabel)
+        updateLevel()
     }
     
     func startSaucerTimer() {
@@ -623,6 +608,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let centerSafeRadius: CGFloat = 200  // Keep large asteroids away from center
         let maxAttempts = 10  // Maximum attempts to find safe position
         
+        // Ensure asteroids spawn away from the player ship
+        let playerSafeRadius: CGFloat = 150  // Minimum distance from player
+        
         for _ in 0..<maxAttempts {
             // Generate random position
             let x = CGFloat.random(in: 0...frame.width)
@@ -632,10 +620,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Check if position is safe
             var positionIsSafe = true
             
+            // Ensure asteroids are away from the player
+            if let player = player {
+                let distanceFromPlayer = hypot(testPosition.x - player.position.x, testPosition.y - player.position.y)
+                if distanceFromPlayer < playerSafeRadius {
+                    positionIsSafe = false
+                    continue
+                }
+            }
+            
             // For large asteroids, ensure they're away from center
             if size == .large {
-                let distanceFromCenter = hypot(testPosition.x - frame.midX,
-                                             testPosition.y - frame.midY)
+                let distanceFromCenter = hypot(testPosition.x - frame.midX, testPosition.y - frame.midY)
                 if distanceFromCenter < centerSafeRadius {
                     positionIsSafe = false
                     continue
@@ -643,8 +639,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 
                 // Check distance from other large asteroids
                 for asteroid in asteroids where asteroid.userData?["size"] as? AsteroidSize == .large {
-                    let distance = hypot(asteroid.position.x - testPosition.x,
-                                      asteroid.position.y - testPosition.y)
+                    let distance = hypot(asteroid.position.x - testPosition.x, asteroid.position.y - testPosition.y)
                     if distance < safeRadius {
                         positionIsSafe = false
                         break
@@ -702,12 +697,14 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             // Add initial rotation, but slower
             let rotationSpeed = CGFloat.random(in: -1.0...1.0)  // Reduced rotation speed
             asteroid.physicsBody?.angularVelocity = rotationSpeed
+            asteroid.name = "Asteroid"
         } else {
             asteroid.fillColor = .clear   // TEMP: Color Roids green (was .clear)
             asteroid.physicsBody = SKPhysicsBody(polygonFrom: asteroidPath)
             asteroid.physicsBody?.categoryBitMask = roidCategory
             asteroid.physicsBody?.contactTestBitMask = shipCategory
             asteroid.physicsBody?.collisionBitMask = 0
+            asteroid.name = "Roid"
         }
         
         // Common physics properties
@@ -781,7 +778,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.physicsBody?.collisionBitMask = 0
         bullet.physicsBody?.contactTestBitMask = allAsteroidsCategory | saucerCategory | saucerBulletCategory
         bullet.physicsBody?.affectedByGravity = false
-        
+        bullet.name = "PlayerBullet"
         // Set velocity in same direction as ship is pointing
         let bulletSpeed: CGFloat = 400.0
         bullet.physicsBody?.velocity = CGVector(dx: -sin(currentPlayer.zRotation) * bulletSpeed,  // Match direction
@@ -1105,6 +1102,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 // Add some initial rotation, but slower
                 let rotationSpeed = CGFloat.random(in: -1.0...1.0)  // Reduced rotation speed
                 newAsteroid.physicsBody?.angularVelocity = rotationSpeed
+                newAsteroid.name = "Newborn Aster"
             } else {
                 // Clear filled asteroids that pass through each other
                 newAsteroid.physicsBody?.categoryBitMask = roidCategory
@@ -1116,6 +1114,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
                 let splitAngle = splitAngles[i] + CGFloat.random(in: -0.5...0.5)
                 let velocity = CGVector(dx: cos(splitAngle) * speed, dy: sin(splitAngle) * speed)
                 newAsteroid.physicsBody?.velocity = velocity
+                newAsteroid.name = "Newborn Roid"
+
             }
             
             newAsteroid.physicsBody?.affectedByGravity = false
@@ -1141,7 +1141,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         createShipDestructionAnimation()
         
         // Remove the player completely
-        player.removeFromParent()
+        player.removeAllActions()  // Remove all actions from the player
+        player.removeFromParent()  // Remove player from parent
         player = nil
         
         if lives <= 1 {
@@ -1149,8 +1150,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             isGameOver = true
             showMessage("GAME OVER", duration: 3.0)
         } else {
-        lives -= 1
-        isRespawning = true
+            lives -= 1
+            isRespawning = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                 self?.tryRespawn()
             }
@@ -1414,6 +1415,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         let collision = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
         
+        // Log collision details
+        print("Collision detected between: \(contact.bodyA.node?.name ?? "Unknown") and \(contact.bodyB.node?.name ?? "Unknown")")
+        
         // Add handling for Aster hitting saucer
         if collision == (asterCategory | saucerCategory) {
             // Get the saucer node
@@ -1456,6 +1460,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if (contact.bodyA.categoryBitMask == shipCategory || 
             contact.bodyB.categoryBitMask == shipCategory) {
             if !isRespawning {
+                // Change the fill color of the object that hit the ship to red
+                if let nodeA = contact.bodyA.node as? SKShapeNode {
+                    //nodeA.fillColor = .red
+                }
+                if let nodeB = contact.bodyB.node as? SKShapeNode {
+                    //nodeB.fillColor = .red
+                }
                 playerDied()
             }
         }
@@ -1490,15 +1501,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         isGameOver = false
         score = 0
         lives = 5
-        
-        // Remove all existing asteroids
-        asteroids.forEach { $0.removeFromParent() }
-        asteroids.removeAll()
-        
-        // Spawn initial asteroids (10 for level 1)
-        for _ in 0..<10 {
-            spawnAsteroid(size: .large)
-        }
         
         // Try to spawn player
         tryRespawn()
@@ -1750,7 +1752,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.physicsBody?.collisionBitMask = 0  // Don't collide with anything
         bullet.physicsBody?.contactTestBitMask = shipCategory | allAsteroidsCategory  // Add asteroid detection
         bullet.physicsBody?.affectedByGravity = false
-        
+        bullet.name = "SaucerBullet"
         // Set velocity
         bullet.physicsBody?.velocity = CGVector(dx: cos(angle) * bulletSpeed,
                                           dy: sin(angle) * bulletSpeed)
@@ -2108,22 +2110,58 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     // Update score display
-    func updateScore() {
-        if let label = scoreLabel {
-            label.text = "SCORE \(score)"
-        }
+    private func updateScore() {
+        // Remove existing score nodes
+        children.filter { $0.name == "scoreNode" }.forEach { $0.removeFromParent() }
+        
+        // Draw score
+        let scoreNode = drawVectorNumber(score, at: CGPoint(x: size.width * 0.1, y: size.height * 0.95))
+        scoreNode.name = "scoreNode"
+        addChild(scoreNode)
     }
     
-    // Update lives display
-    func updateLives() {
-        if let label = livesLabel {
-            label.text = "LIVES \(lives)"
-        }
+    private func updateHighScore() {
+        // Remove existing high score nodes
+        children.filter { $0.name == "highScoreNode" }.forEach { $0.removeFromParent() }
+        
+        // Draw high score
+        let highScoreNode = drawVectorNumber(highScore, at: CGPoint(x: size.width * 0.5, y: size.height * 0.95))
+        highScoreNode.name = "highScoreNode"
+        addChild(highScoreNode)
     }
     
-    // Update high score display
-    func updateHighScore() {
-        highScoreLabel.text = "HIGH SCORE \(highScore)"
+    private func createLivesShip(at pos: CGPoint) -> SKNode {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 12.5))    // Top point
+        path.addLine(to: CGPoint(x: -7.5, y: -12.5)) // Bottom left
+        path.addLine(to: CGPoint(x: 7.5, y: -12.5))  // Bottom right
+        path.closeSubpath()
+        
+        let shipShape = SKShapeNode(path: path)
+        shipShape.strokeColor = .white
+        shipShape.lineWidth = 2.0
+        shipShape.position = pos
+        return shipShape
+    }
+
+    private func updateLives() {
+        // Remove existing lives nodes
+        livesNodes.forEach { $0.removeFromParent() }
+        livesNodes.removeAll()
+        
+        // Create lives container at top right
+        let livesContainer = SKNode()
+        livesContainer.position = CGPoint(x: frame.width - 50, y: frame.height - 50)
+        
+        // Create ship icons for each life
+        let shipSpacing: CGFloat = 20 // Reduced by 50%
+        for i in 0..<lives {
+            let shipNode = createLivesShip(at: CGPoint(x: -CGFloat(i) * shipSpacing, y: 0))
+            livesNodes.append(shipNode as! SKShapeNode)
+            livesContainer.addChild(shipNode)
+        }
+        
+        addChild(livesContainer)
     }
     
     func wrapPlayer() {
@@ -2194,6 +2232,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         // Show level message
         showMessage("LEVEL \(level)", duration: 2.0)
+        
+        // Update level display
+        updateLevel()
         
         // Spawn new asteroids (level + 9 asteroids)
         for _ in 0..<(level + 9) {
@@ -2470,5 +2511,400 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         
         run(SKAction.sequence([waitAction, spawnAction]), withKey: "spawnSaucer")
+    }
+
+    private func createLetterB(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 25))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: -25))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        return (path, pos)
+    }
+
+    private func createLetterF(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.move(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 15, y: 0))
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+
+    private func createLetterJ(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -25))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -25))
+        return (path, pos)
+    }
+
+    private func createLetterK(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+
+    private func createLetterL(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+
+    private func createLetterP(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        return (path, pos)
+    }
+
+    private func createLetterQ(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.move(to: CGPoint(x: 0, y: -25))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+
+    private func createLetterU(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        return (path, pos)
+    }
+
+    private func createLetterW(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -15, y: -50))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 15, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        return (path, pos)
+    }
+
+    private func createLetterX(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+
+    private func createLetterY(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        return (path, pos)
+    }
+
+    // Vector-based numbers for scoring
+    private func createNumber0(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        // Diagonal line for style
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        return (path, pos)
+    }
+
+    private func createNumber1(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 0, y: 50))
+        path.addLine(to: CGPoint(x: 0, y: -50))
+        path.move(to: CGPoint(x: -15, y: 25))
+        path.addLine(to: CGPoint(x: 0, y: 50))
+        path.move(to: CGPoint(x: -15, y: -50))
+        path.addLine(to: CGPoint(x: 15, y: -50))
+        return (path, pos)
+    }
+
+    private func createNumber2(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 25))
+        path.addLine(to: CGPoint(x: -25, y: -25))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+
+    private func createNumber3(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.move(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        return (path, pos)
+    }
+
+    private func createNumber4(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        return (path, pos)
+    }
+
+    private func createNumber5(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+
+    private func createNumber6(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        return (path, pos)
+    }
+
+    private func createNumber7(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        return (path, pos)
+    }
+
+    private func createNumber8(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        return (path, pos)
+    }
+
+    private func createNumber9(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: -25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: -50))
+        path.addLine(to: CGPoint(x: 25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 50))
+        path.addLine(to: CGPoint(x: -25, y: 0))
+        path.addLine(to: CGPoint(x: 25, y: 0))
+        return (path, pos)
+    }
+
+    // Helper function to create any number
+    private func createNumber(_ number: Int, at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        switch number {
+        case 0: return createNumber0(at: pos)
+        case 1: return createNumber1(at: pos)
+        case 2: return createNumber2(at: pos)
+        case 3: return createNumber3(at: pos)
+        case 4: return createNumber4(at: pos)
+        case 5: return createNumber5(at: pos)
+        case 6: return createNumber6(at: pos)
+        case 7: return createNumber7(at: pos)
+        case 8: return createNumber8(at: pos)
+        case 9: return createNumber9(at: pos)
+        default: return createNumber0(at: pos) // Default to 0 for invalid numbers
+        }
+    }
+
+    // Helper function to create a score display
+    private func createTextDisplay(_ text: String, at startPos: CGPoint, spacing: CGFloat = 20) -> [SKShapeNode] {
+        var nodes: [SKShapeNode] = []
+        var xOffset: CGFloat = startPos.x  // Start from the given start position
+        var index = 0  // Track the index for progressive spacing
+        
+        for char in text {
+            let path: CGMutablePath
+            let position = CGPoint(x: xOffset, y: startPos.y)  // Use xOffset for horizontal positioning
+            
+            switch char {
+            case "0"..."9":
+                (path, _) = createNumber(Int(String(char))!, at: position)
+            case "A": (path, _) = createLetterA(at: position)
+            case "B": (path, _) = createLetterB(at: position)
+            case "C": (path, _) = createLetterC(at: position)
+            case "D": (path, _) = createLetterD(at: position)
+            case "E": (path, _) = createLetterE(at: position)
+            case "F": (path, _) = createLetterF(at: position)
+            case "G": (path, _) = createLetterG(at: position)
+            case "H": (path, _) = createLetterH(at: position)
+            case "I": (path, _) = createLetterI(at: position)
+            case "J": (path, _) = createLetterJ(at: position)
+            case "K": (path, _) = createLetterK(at: position)
+            case "L": (path, _) = createLetterL(at: position)
+            case "M": (path, _) = createLetterM(at: position)
+            case "N": (path, _) = createLetterN(at: position)
+            case "O": (path, _) = createLetterO(at: position)
+            case "P": (path, _) = createLetterP(at: position)
+            case "Q": (path, _) = createLetterQ(at: position)
+            case "R": (path, _) = createLetterR(at: position)
+            case "S": (path, _) = createLetterS(at: position)
+            case "T": (path, _) = createLetterT(at: position)
+            case "U": (path, _) = createLetterU(at: position)
+            case "V": (path, _) = createLetterV(at: position)
+            case "W": (path, _) = createLetterW(at: position)
+            case "X": (path, _) = createLetterX(at: position)
+            case "Y": (path, _) = createLetterY(at: position)
+            case "Z": (path, _) = createLetterZ(at: position)
+            case " ":
+                xOffset += spacing * CGFloat(index + 1)
+                index += 1
+                continue
+            default:
+                xOffset += spacing * CGFloat(index + 1)
+                index += 1
+                continue
+            }
+            
+            let node = SKShapeNode(path: path)
+            node.strokeColor = .white
+            node.lineWidth = 2.0
+            node.alpha = 0.5
+            nodes.append(node)
+            
+            // Increment xOffset by progressive spacing for next character
+            xOffset += spacing * CGFloat(index + 1)
+            index += 1
+        }
+        
+        return nodes
+    }
+
+    private func drawVectorNumber(_ number: Int, at position: CGPoint) -> SKNode {
+        let numberNode = SKNode()
+        let digitWidth: CGFloat = 10
+        let digitSpacing: CGFloat = 5
+        let digitHeight: CGFloat = 20
+        
+        let digitPoints: [[CGPoint]] = [
+            // 0
+            [CGPoint(x: 0, y: 0), CGPoint(x: digitWidth, y: 0),
+             CGPoint(x: digitWidth, y: 0), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: 0, y: digitHeight),
+             CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: 0)],
+            // 1
+            [CGPoint(x: digitWidth, y: 0), CGPoint(x: digitWidth, y: digitHeight)],
+            // 2
+            [CGPoint(x: 0, y: digitHeight), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: digitWidth, y: digitHeight/2),
+             CGPoint(x: digitWidth, y: digitHeight/2), CGPoint(x: 0, y: digitHeight/2),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: 0, y: 0),
+             CGPoint(x: 0, y: 0), CGPoint(x: digitWidth, y: 0)],
+            // 3
+            [CGPoint(x: 0, y: digitHeight), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: digitWidth, y: 0),
+             CGPoint(x: digitWidth, y: 0), CGPoint(x: 0, y: 0),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: digitWidth, y: digitHeight/2)],
+            // 4
+            [CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: digitHeight/2),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: digitWidth, y: digitHeight/2),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: digitWidth, y: 0)],
+            // 5
+            [CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: 0, y: digitHeight),
+             CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: digitHeight/2),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: digitWidth, y: digitHeight/2),
+             CGPoint(x: digitWidth, y: digitHeight/2), CGPoint(x: digitWidth, y: 0),
+             CGPoint(x: digitWidth, y: 0), CGPoint(x: 0, y: 0)],
+            // 6
+            [CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: 0, y: digitHeight),
+             CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: 0),
+             CGPoint(x: 0, y: 0), CGPoint(x: digitWidth, y: 0),
+             CGPoint(x: digitWidth, y: 0), CGPoint(x: digitWidth, y: digitHeight/2),
+             CGPoint(x: digitWidth, y: digitHeight/2), CGPoint(x: 0, y: digitHeight/2)],
+            // 7
+            [CGPoint(x: 0, y: digitHeight), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: digitWidth, y: 0)],
+            // 8
+            [CGPoint(x: 0, y: 0), CGPoint(x: digitWidth, y: 0),
+             CGPoint(x: digitWidth, y: 0), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: 0, y: digitHeight),
+             CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: 0),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: digitWidth, y: digitHeight/2)],
+            // 9
+            [CGPoint(x: digitWidth, y: 0), CGPoint(x: digitWidth, y: digitHeight),
+             CGPoint(x: digitWidth, y: digitHeight), CGPoint(x: 0, y: digitHeight),
+             CGPoint(x: 0, y: digitHeight), CGPoint(x: 0, y: digitHeight/2),
+             CGPoint(x: 0, y: digitHeight/2), CGPoint(x: digitWidth, y: digitHeight/2)]
+        ]
+        
+        // Convert number to string to process each digit
+        let digits = String(number).compactMap { Int(String($0)) }
+        var totalWidth: CGFloat = 0
+        
+        // Calculate total width
+        totalWidth = CGFloat(digits.count) * (digitWidth + digitSpacing) - digitSpacing
+        
+        // Start drawing from the left, accounting for total width
+        var currentX: CGFloat = -totalWidth / 2
+        
+        for digit in digits {
+            let digitNode = SKNode()
+            
+            for i in stride(from: 0, to: digitPoints[digit].count, by: 2) {
+                let line = SKShapeNode()
+                let path = CGMutablePath()
+                path.move(to: digitPoints[digit][i])
+                path.addLine(to: digitPoints[digit][i + 1])
+                line.path = path
+                line.strokeColor = .white
+                line.lineWidth = 2
+                digitNode.addChild(line)
+            }
+            
+            // Position each digit with proper spacing
+            digitNode.position = CGPoint(x: currentX, y: 0)
+            numberNode.addChild(digitNode)
+            
+            // Move to next digit position
+            currentX += digitWidth + digitSpacing
+        }
+        
+        numberNode.position = position
+        return numberNode
     }
 }

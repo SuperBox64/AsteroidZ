@@ -22,7 +22,12 @@ class ViewController: NSViewController {
             
             view.ignoresSiblingOrder = true
             view.isAsynchronous = true
-            view.showsFPS = false
+            view.showsFPS = true
+            view.showsPhysics = false
+            view.showsFields = false
+            view.shouldCullNonVisibleNodes = true
+            view.allowsTransparency = true
+            view.preferredFramesPerSecond = 120 //The limit is 60, but this keeps the game playing fast and smooth on 5K displays.
             view.showsNodeCount = false
             view.presentScene(scene)
 
