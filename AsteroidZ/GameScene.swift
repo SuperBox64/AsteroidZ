@@ -2257,17 +2257,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create container specifically for ASTEROIDZ title
         let asteroidzContainer = SKShapeNode()
         
-        // ASTEROIDZ title letters - adjusted positions to center
+        // ASTEROIDZ title letters - adjusted positions to center with 25% less spacing
         let titleLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterA(at: CGPoint(x: -350, y: 100)),  // Moved left
-            createLetterS(at: CGPoint(x: -250, y: 100)),
-            createLetterT(at: CGPoint(x: -150, y: 100)),
-            createLetterE(at: CGPoint(x: -50, y: 100)),
-            createLetterR(at: CGPoint(x: 50, y: 100)),
-            createLetterO(at: CGPoint(x: 150, y: 100)),
-            createLetterI(at: CGPoint(x: 225, y: 100)),
-            createLetterD(at: CGPoint(x: 300, y: 100)),
-            createLetterZ(at: CGPoint(x: 400, y: 100))
+            createLetterA(at: CGPoint(x: -262, y: 100)),  // Reduced spacing by 25%
+            createLetterS(at: CGPoint(x: -187, y: 100)),
+            createLetterT(at: CGPoint(x: -112, y: 100)),
+            createLetterE(at: CGPoint(x: -37, y: 100)),
+            createLetterR(at: CGPoint(x: 38, y: 100)),
+            createLetterO(at: CGPoint(x: 113, y: 100)),
+            createLetterI(at: CGPoint(x: 169, y: 100)),
+            createLetterD(at: CGPoint(x: 225, y: 100)),
+            createLetterZ(at: CGPoint(x: 300, y: 100))
         ]
         
         // Add ASTEROIDZ letters to its container
@@ -2281,19 +2281,24 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Add ASTEROIDZ container to title screen
         titleScreen?.addChild(asteroidzContainer)
         
-        // Add INSERT COIN letters - adjusted positions to center
+        // Add INSERT COIN letters - adjusted positions to center with 25% less spacing
         let insertLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterI(at: CGPoint(x: -225, y: -50)),
-            createLetterN(at: CGPoint(x: -175, y: -50)),
-            createLetterS(at: CGPoint(x: -125, y: -50)),
-            createLetterE(at: CGPoint(x: -75, y: -50)),
-            createLetterR(at: CGPoint(x: -25, y: -50)),
-            createLetterT(at: CGPoint(x: 25, y: -50)),
-            createLetterC(at: CGPoint(x: 100, y: -50)),
-            createLetterO(at: CGPoint(x: 150, y: -50)),
-            createLetterI(at: CGPoint(x: 200, y: -50)),
-            createLetterN(at: CGPoint(x: 250, y: -50))
+            createLetterI(at: CGPoint(x: -169, y: -50)),
+            createLetterN(at: CGPoint(x: -134, y: -50)),  // Moved N 3px left from -131
+            createLetterS(at: CGPoint(x: -94, y: -50)),
+            createLetterE(at: CGPoint(x: -56, y: -50)),
+            createLetterR(at: CGPoint(x: -19, y: -50)),
+            createLetterT(at: CGPoint(x: 19, y: -50)),
+            createLetterC(at: CGPoint(x: 75, y: -50)),
+            createLetterO(at: CGPoint(x: 112, y: -50)),
+            createLetterI(at: CGPoint(x: 150, y: -50)),
+            createLetterN(at: CGPoint(x: 187, y: -50))
         ]
+        
+    
+        // Create a container for INSERT COIN with yellow border
+        let insertCoinContainer = SKShapeNode()
+        titleScreen?.addChild(insertCoinContainer)
         
         for (path, position) in insertLetters {
             let letter = SKShapeNode(path: path)
@@ -2301,18 +2306,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             letter.lineWidth = 2.0
             letter.position = position
             letter.setScale(0.5)  // 50% size
-            titleScreen?.addChild(letter)
+            insertCoinContainer.addChild(letter)  // Add to insert coin container instead
         }
         
-        // Position title screen at exact center of frame
-        titleScreen?.position = CGPoint(x: frame.midX, y: frame.midY)
-        addChild(titleScreen!)
+      
         
         // Glow animation for ASTEROIDZ only
         let glow = SKAction.sequence([
             SKAction.customAction(withDuration: 4.0) { node, time in
                 let progress = time / 2.0
-                let alpha = 0.775 + sin(progress * .pi * 2) * 0.075  // Oscillates between 0.7 and 0.85
+                let alpha = 0.75 + sin(progress * .pi * 2) * 0.075  // Oscillates 
                 node.alpha = alpha
             }
         ])
@@ -2320,22 +2323,19 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Apply glow to ASTEROIDZ container only
         asteroidzContainer.run(SKAction.repeatForever(glow))
         
-        // Blink effect for INSERT COIN letters only
+        // Blink effect for INSERT COIN
         let blink = SKAction.sequence([
             SKAction.wait(forDuration: 0.5),
-            SKAction.run { [weak self] in
-                self?.titleScreen?.children.forEach { node in
-                    if node.position.y < 0 {  // Only affect INSERT COIN letters
-                        node.isHidden.toggle()
-                    }
-                }
+            SKAction.run { [weak insertCoinContainer] in
+                insertCoinContainer?.alpha = insertCoinContainer?.alpha == 1.0 ? 0.0 : 1.0
             }
         ])
         
-        titleScreen?.run(SKAction.repeatForever(blink))
+        insertCoinContainer.run(SKAction.repeatForever(blink))
         
-        // Wait for spacebar
-        isGameOver = true
+        // Position title screen at exact center of frame
+        titleScreen?.position = CGPoint(x: frame.midX - 20, y: frame.midY)
+        addChild(titleScreen!)
     }
     
     // Helper functions to create letter paths
