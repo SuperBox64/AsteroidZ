@@ -1141,8 +1141,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         createShipDestructionAnimation()
         
         // Remove the player completely
-        player.removeAllActions()  // Remove all actions from the player
-        player.removeFromParent()  // Remove player from parent
+        if let player {
+            player.removeAllActions()  // Remove all actions from the player
+            player.removeFromParent()
+        }
+        // Remove player from parent
         player = nil
         
         if lives <= 1 {
@@ -1184,8 +1187,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         [topLine, leftLine, rightLine].forEach {
             $0.strokeColor = .white
             $0.lineWidth = 2.0
-            $0.position = player.position
-            $0.zRotation = player.zRotation
+            
+            if let player {
+                $0.position = player.position
+                $0.zRotation = player.zRotation
+            }
+           
             addChild($0)
         }
         
@@ -1208,11 +1215,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         run(SKAction.sequence([wait, remove]))
     }
-    
-    func showGameOver() {
-        isGameOver = true
-        showMessage("GAME OVER - Press 'C' to Continue", duration: 3.0)
-    }
+
     
     // Add new respawn methods
     func findSafeSpawnLocation() -> CGPoint? {
@@ -1945,32 +1948,34 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add this helper function
     func showMessage(_ text: String, duration: TimeInterval = 2.0) {
         if text.contains("GAME OVER") {
-            // Main GAME OVER message
-            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-            messageLabel.text = text.uppercased()
-            messageLabel.fontSize = 40
-            messageLabel.alpha = 0.75  // 75% opacity for GAME OVER
-            messageLabel.position = CGPoint(x: frame.midX, y: frame.midY + 30)
-            messageLabel.horizontalAlignmentMode = .center
-            addChild(messageLabel)
-            gameOverLabels.append(messageLabel)
             
-            // Press Spacebar to Play message with throbbing animation
-            let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-            promptLabel.text = "Press Spacebar to Play"
-            promptLabel.fontSize = 20
-            promptLabel.alpha = 0.5  // Keep spacebar prompt at 50%
-            promptLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
-            promptLabel.horizontalAlignmentMode = .center
-            addChild(promptLabel)
-            gameOverLabels.append(promptLabel)
+            showGameOverScreen()
+            // Main GAME OVER message
+//            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+//            messageLabel.text = text.uppercased()
+//            messageLabel.fontSize = 40
+//            messageLabel.alpha = 0.75  // 75% opacity for GAME OVER
+//            messageLabel.position = CGPoint(x: frame.midX, y: frame.midY + 30)
+//            messageLabel.horizontalAlignmentMode = .center
+//            addChild(messageLabel)
+//            gameOverLabels.append(messageLabel)
+//            
+//            // Press Spacebar to Play message with throbbing animation
+//            let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
+//            promptLabel.text = "Press Spacebar to Play"
+//            promptLabel.fontSize = 20
+//            promptLabel.alpha = 0.5  // Keep spacebar prompt at 50%
+//            promptLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
+//            promptLabel.horizontalAlignmentMode = .center
+//            addChild(promptLabel)
+//            gameOverLabels.append(promptLabel)
             
             // Add throbbing animation to spacebar prompt
-            let throb = SKAction.sequence([
-                SKAction.fadeAlpha(to: 0.2, duration: 1.0),
-                SKAction.fadeAlpha(to: 0.5, duration: 1.0)
-            ])
-            promptLabel.run(SKAction.repeatForever(throb))
+//            let throb = SKAction.sequence([
+//                SKAction.fadeAlpha(to: 0.2, duration: 1.0),
+//                SKAction.fadeAlpha(to: 0.5, duration: 1.0)
+//            ])
+            //promptLabel.run(SKAction.repeatForever(throb))
         } else if text.contains("EXTRA SHIP") {
             let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
             messageLabel.text = text.uppercased()
@@ -2252,9 +2257,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create container specifically for ASTEROIDZ title
         let asteroidzContainer = SKShapeNode()
         
-        // ASTEROIDZ title letters
+        // ASTEROIDZ title letters - adjusted positions to center
         let titleLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterA(at: CGPoint(x: -350, y: 100)),
+            createLetterA(at: CGPoint(x: -350, y: 100)),  // Moved left
             createLetterS(at: CGPoint(x: -250, y: 100)),
             createLetterT(at: CGPoint(x: -150, y: 100)),
             createLetterE(at: CGPoint(x: -50, y: 100)),
@@ -2273,22 +2278,21 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             letter.position = position
             asteroidzContainer.addChild(letter)
         }
-        
         // Add ASTEROIDZ container to title screen
         titleScreen?.addChild(asteroidzContainer)
         
-        // Add INSERT COIN letters directly to title screen
+        // Add INSERT COIN letters - adjusted positions to center
         let insertLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterI(at: CGPoint(x: -175, y: -50)),
-            createLetterN(at: CGPoint(x: -125, y: -50)),
-            createLetterS(at: CGPoint(x: -75, y: -50)),
-            createLetterE(at: CGPoint(x: -25, y: -50)),
-            createLetterR(at: CGPoint(x: 25, y: -50)),
-            createLetterT(at: CGPoint(x: 75, y: -50)),
-            createLetterC(at: CGPoint(x: 150, y: -50)),
-            createLetterO(at: CGPoint(x: 200, y: -50)),
-            createLetterI(at: CGPoint(x: 250, y: -50)),
-            createLetterN(at: CGPoint(x: 300, y: -50))
+            createLetterI(at: CGPoint(x: -225, y: -50)),
+            createLetterN(at: CGPoint(x: -175, y: -50)),
+            createLetterS(at: CGPoint(x: -125, y: -50)),
+            createLetterE(at: CGPoint(x: -75, y: -50)),
+            createLetterR(at: CGPoint(x: -25, y: -50)),
+            createLetterT(at: CGPoint(x: 25, y: -50)),
+            createLetterC(at: CGPoint(x: 100, y: -50)),
+            createLetterO(at: CGPoint(x: 150, y: -50)),
+            createLetterI(at: CGPoint(x: 200, y: -50)),
+            createLetterN(at: CGPoint(x: 250, y: -50))
         ]
         
         for (path, position) in insertLetters {
@@ -2300,7 +2304,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             titleScreen?.addChild(letter)
         }
         
-        // Position title screen
+        // Position title screen at exact center of frame
         titleScreen?.position = CGPoint(x: frame.midX, y: frame.midY)
         addChild(titleScreen!)
         
@@ -2906,5 +2910,73 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         numberNode.position = position
         return numberNode
+    }
+
+    func showGameOverScreen() {
+        // Create container for all game over lines
+        let gameOverScreen = SKNode()
+        
+        // GAME OVER title letters with adjusted spacing
+        let gameOverLetters: [(path: CGMutablePath, position: CGPoint)] = [
+            createLetterG(at: CGPoint(x: -200, y: 50)),  // Start further left
+            createLetterA(at: CGPoint(x: -140, y: 50)),  // More space
+            createLetterM(at: CGPoint(x: -80, y: 50)),   // More space
+            createLetterE(at: CGPoint(x: -20, y: 50)),   // More space
+            createLetterO(at: CGPoint(x: 60, y: 50)),    // Double space after E
+            createLetterV(at: CGPoint(x: 120, y: 50)),   // More space
+            createLetterE(at: CGPoint(x: 180, y: 50)),   // More space
+            createLetterR(at: CGPoint(x: 240, y: 50))    // More space
+        ]
+        
+        // Add GAME OVER letters to the screen
+        for (path, position) in gameOverLetters {
+            let letter = SKShapeNode(path: path)
+            letter.strokeColor = .white
+            letter.lineWidth = 2.0
+            letter.position = position
+            gameOverScreen.addChild(letter)
+        }
+        
+        // PRESS SPACE letters with adjusted spacing and 50% size
+        let pressSpaceLetters: [(path: CGMutablePath, position: CGPoint)] = [
+            createLetterP(at: CGPoint(x: -170, y: -50)),
+            createLetterR(at: CGPoint(x: -130, y: -50)),
+            createLetterE(at: CGPoint(x: -90, y: -50)),
+            createLetterS(at: CGPoint(x: -50, y: -50)),
+            createLetterS(at: CGPoint(x: -10, y: -50)),    // Last S in PRESS
+            createLetterS(at: CGPoint(x: 50, y: -50)),    // First S in SPACE (double space gap)
+            createLetterP(at: CGPoint(x: 90, y: -50)),
+            createLetterA(at: CGPoint(x: 130, y: -50)),
+            createLetterC(at: CGPoint(x: 170, y: -50)),
+            createLetterE(at: CGPoint(x: 210, y: -50))
+        ]
+        
+        // Add PRESS SPACE letters to the screen with 50% scale
+        for (path, position) in pressSpaceLetters {
+            let letter = SKShapeNode(path: path)
+            letter.strokeColor = .white
+            letter.lineWidth = 2.0
+            letter.position = position
+            letter.setScale(0.5)  // Set to 50% size
+            gameOverScreen.addChild(letter)
+        }
+        
+        // Position game over screen
+        gameOverScreen.position = CGPoint(x: frame.midX, y: frame.midY)
+        addChild(gameOverScreen)
+        
+        // Blink effect for PRESS SPACE
+        let blink = SKAction.sequence([
+            SKAction.wait(forDuration: 0.5),
+            SKAction.run { [weak gameOverScreen] in
+                gameOverScreen?.children.forEach { node in
+                    if node.position.y < 0 {  // Only affect PRESS SPACE letters
+                        node.isHidden.toggle()
+                    }
+                }
+            }
+        ])
+        
+        gameOverScreen.run(SKAction.repeatForever(blink))
     }
 }
