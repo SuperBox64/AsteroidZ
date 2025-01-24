@@ -13,11 +13,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        // Make window fullscreen at launch
-        NSCursor.hide()
         if let window = NSApplication.shared.windows.first {
+            // Set window size using setFrame
+            let newFrame = NSRect(x: window.frame.origin.x,
+                                y: window.frame.origin.y,
+                                width: 1920 / 2,
+                                height: 1080 / 2)
+            window.setFrame(newFrame, display: true)
+            
             window.toggleFullScreen(nil)
+            
+            // Set fullscreen directly
+            if !window.styleMask.contains(.fullScreen) {
+                window.collectionBehavior = [.fullScreenPrimary]
+                window.setFrame(window.screen?.frame ?? newFrame, display: true)
+                window.styleMask.insert(.fullScreen)
+            }
+            
             window.makeKeyAndOrderFront(nil)
+            
+            // Add slight delay to check fullscreen state
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                if window.styleMask.contains(.fullScreen) {
+                    NSCursor.hide()
+                }
+            }
         }
     }
     

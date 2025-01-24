@@ -22,7 +22,7 @@ class ViewController: NSViewController {
             
             view.ignoresSiblingOrder = true
             view.isAsynchronous = true
-            view.showsFPS = true
+            view.showsFPS = false
             view.showsPhysics = false
             view.showsFields = false
             view.shouldCullNonVisibleNodes = true

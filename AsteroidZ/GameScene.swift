@@ -31,7 +31,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var scoreNodes: [SKShapeNode] = []
     private var highScoreNodes: [SKShapeNode] = []
     private var livesNodes: [SKShapeNode] = []
-    private let extraShipBonus = 10000    // Points needed for extra ship (changed from 500)
+    private let extraShipBonus = 5000
     
     private var score: Int = 0 {
         didSet {
