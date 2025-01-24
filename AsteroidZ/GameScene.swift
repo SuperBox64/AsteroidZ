@@ -50,7 +50,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         }
     }
-    private var lives: Int = 5 {
+    private var lives: Int = 3 {
         didSet {
             updateLives()
         }
@@ -1518,7 +1518,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Reset game state
         isGameOver = false
         score = 0
-        lives = 5
+        lives = 3
         
         // Try to spawn player
         tryRespawn()
@@ -1963,48 +1963,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add this helper function
     func showMessage(_ text: String, duration: TimeInterval = 2.0) {
         if text.contains("GAME OVER") {
-            
             showGameOverScreen()
-            // Main GAME OVER message
-//            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-//            messageLabel.text = text.uppercased()
-//            messageLabel.fontSize = 40
-//            messageLabel.alpha = 0.75  // 75% opacity for GAME OVER
-//            messageLabel.position = CGPoint(x: frame.midX, y: frame.midY + 30)
-//            messageLabel.horizontalAlignmentMode = .center
-//            addChild(messageLabel)
-//            gameOverLabels.append(messageLabel)
-//            
-//            // Press Spacebar to Play message with throbbing animation
-//            let promptLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-//            promptLabel.text = "Press Spacebar to Play"
-//            promptLabel.fontSize = 20
-//            promptLabel.alpha = 0.5  // Keep spacebar prompt at 50%
-//            promptLabel.position = CGPoint(x: frame.midX, y: frame.midY - 20)
-//            promptLabel.horizontalAlignmentMode = .center
-//            addChild(promptLabel)
-//            gameOverLabels.append(promptLabel)
+        } else if text.contains("EXTRA") {
+            // Create vector text for EXTRA LIVES
+            let messageNode = drawVectorLetter(text, at: CGPoint(x: frame.maxX - 100, y: 50))
+            messageNode.alpha = 1.0  
+            addChild(messageNode)
             
-            // Add throbbing animation to spacebar prompt
-//            let throb = SKAction.sequence([
-//                SKAction.fadeAlpha(to: 0.2, duration: 1.0),
-//                SKAction.fadeAlpha(to: 0.5, duration: 1.0)
-//            ])
-            //promptLabel.run(SKAction.repeatForever(throb))
-        } else if text.contains("EXTRA SHIP") {
-            let messageLabel = SKLabelNode(fontNamed: "Avenir-Medium")
-            messageLabel.text = text.uppercased()
-        messageLabel.fontSize = 20
-            messageLabel.alpha = 0.5    // 50% opacity
-            messageLabel.position = CGPoint(x: frame.maxX - 100, y: 50)  // Bottom right
-        messageLabel.horizontalAlignmentMode = .right
-        addChild(messageLabel)
-        
-        // Animate and remove
-        let wait = SKAction.wait(forDuration: duration)
+            // Animate and remove
+            let wait = SKAction.wait(forDuration: duration)
             let fade = SKAction.fadeOut(withDuration: 0.3)
-        let remove = SKAction.removeFromParent()
-            messageLabel.run(SKAction.sequence([wait, fade, remove]))
+            let remove = SKAction.removeFromParent()
+            messageNode.run(SKAction.sequence([wait, fade, remove]))
         }
     }
     
@@ -2643,196 +2613,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         return (path, pos)
     }
 
-    // Vector-based numbers for scoring
-    private func createNumber0(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: -25, y: 50))
-        // Diagonal line for style
-        path.move(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        return (path, pos)
-    }
-
-    private func createNumber1(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: 0, y: 50))
-        path.addLine(to: CGPoint(x: 0, y: -50))
-        path.move(to: CGPoint(x: -15, y: 25))
-        path.addLine(to: CGPoint(x: 0, y: 50))
-        path.move(to: CGPoint(x: -15, y: -50))
-        path.addLine(to: CGPoint(x: 15, y: -50))
-        return (path, pos)
-    }
-
-    private func createNumber2(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 25))
-        path.addLine(to: CGPoint(x: -25, y: -25))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        return (path, pos)
-    }
-
-    private func createNumber3(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        path.move(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        return (path, pos)
-    }
-
-    private func createNumber4(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        path.move(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        return (path, pos)
-    }
-
-    private func createNumber5(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        return (path, pos)
-    }
-
-    private func createNumber6(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        path.addLine(to: CGPoint(x: -25, y: 0))
-        return (path, pos)
-    }
-
-    private func createNumber7(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        return (path, pos)
-    }
-
-    private func createNumber8(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        path.addLine(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        return (path, pos)
-    }
-
-    private func createNumber9(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: -25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: -50))
-        path.addLine(to: CGPoint(x: 25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 50))
-        path.addLine(to: CGPoint(x: -25, y: 0))
-        path.addLine(to: CGPoint(x: 25, y: 0))
-        return (path, pos)
-    }
-
-    // Helper function to create any number
-    private func createNumber(_ number: Int, at pos: CGPoint) -> (CGMutablePath, CGPoint) {
-        switch number {
-        case 0: return createNumber0(at: pos)
-        case 1: return createNumber1(at: pos)
-        case 2: return createNumber2(at: pos)
-        case 3: return createNumber3(at: pos)
-        case 4: return createNumber4(at: pos)
-        case 5: return createNumber5(at: pos)
-        case 6: return createNumber6(at: pos)
-        case 7: return createNumber7(at: pos)
-        case 8: return createNumber8(at: pos)
-        case 9: return createNumber9(at: pos)
-        default: return createNumber0(at: pos) // Default to 0 for invalid numbers
-        }
-    }
-
-    // Helper function to create a score display
-    private func createTextDisplay(_ text: String, at startPos: CGPoint, spacing: CGFloat = 20) -> [SKShapeNode] {
-        var nodes: [SKShapeNode] = []
-        var xOffset: CGFloat = startPos.x  // Start from the given start position
-        var index = 0  // Track the index for progressive spacing
-        
-        for char in text {
-            let path: CGMutablePath
-            let position = CGPoint(x: xOffset, y: startPos.y)  // Use xOffset for horizontal positioning
-            
-            switch char {
-            case "0"..."9":
-                (path, _) = createNumber(Int(String(char))!, at: position)
-            case "A": (path, _) = createLetterA(at: position)
-            case "B": (path, _) = createLetterB(at: position)
-            case "C": (path, _) = createLetterC(at: position)
-            case "D": (path, _) = createLetterD(at: position)
-            case "E": (path, _) = createLetterE(at: position)
-            case "F": (path, _) = createLetterF(at: position)
-            case "G": (path, _) = createLetterG(at: position)
-            case "H": (path, _) = createLetterH(at: position)
-            case "I": (path, _) = createLetterI(at: position)
-            case "J": (path, _) = createLetterJ(at: position)
-            case "K": (path, _) = createLetterK(at: position)
-            case "L": (path, _) = createLetterL(at: position)
-            case "M": (path, _) = createLetterM(at: position)
-            case "N": (path, _) = createLetterN(at: position)
-            case "O": (path, _) = createLetterO(at: position)
-            case "P": (path, _) = createLetterP(at: position)
-            case "Q": (path, _) = createLetterQ(at: position)
-            case "R": (path, _) = createLetterR(at: position)
-            case "S": (path, _) = createLetterS(at: position)
-            case "T": (path, _) = createLetterT(at: position)
-            case "U": (path, _) = createLetterU(at: position)
-            case "V": (path, _) = createLetterV(at: position)
-            case "W": (path, _) = createLetterW(at: position)
-            case "X": (path, _) = createLetterX(at: position)
-            case "Y": (path, _) = createLetterY(at: position)
-            case "Z": (path, _) = createLetterZ(at: position)
-            case " ":
-                xOffset += spacing * CGFloat(index + 1)
-                index += 1
-                continue
-            default:
-                xOffset += spacing * CGFloat(index + 1)
-                index += 1
-                continue
-            }
-            
-            let node = SKShapeNode(path: path)
-            node.strokeColor = .white
-            node.lineWidth = 2.0
-            node.alpha = 0.5
-            nodes.append(node)
-            
-            // Increment xOffset by progressive spacing for next character
-            xOffset += spacing * CGFloat(index + 1)
-            index += 1
-        }
-        
-        return nodes
-    }
+   
 
     private func drawVectorNumber(_ number: Int, at position: CGPoint) -> SKNode {
         let numberNode = SKNode()
@@ -3010,5 +2791,147 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         ])
         
         gameOverScreen?.run(SKAction.repeatForever(blink))
+    }
+
+    private func drawVectorLetter(_ text: String, at position: CGPoint) -> SKNode {
+        let letterNode = SKNode()
+        let letterWidth: CGFloat = 10
+        let letterSpacing: CGFloat = 5
+        let letterHeight: CGFloat = 20
+        
+        let letterPoints: [String: [CGPoint]] = [
+            "A": [CGPoint(x: 0, y: 0), CGPoint(x: letterWidth/2, y: letterHeight),
+                  CGPoint(x: letterWidth/2, y: letterHeight), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth/4, y: letterHeight/2), CGPoint(x: letterWidth*3/4, y: letterHeight/2)],
+            "B": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth*3/4, y: letterHeight),
+                  CGPoint(x: letterWidth*3/4, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight*3/4),
+                  CGPoint(x: letterWidth, y: letterHeight*3/4), CGPoint(x: letterWidth*3/4, y: letterHeight/2),
+                  CGPoint(x: letterWidth*3/4, y: letterHeight/2), CGPoint(x: 0, y: letterHeight/2),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth*3/4, y: letterHeight/2),
+                  CGPoint(x: letterWidth*3/4, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight/4),
+                  CGPoint(x: letterWidth, y: letterHeight/4), CGPoint(x: letterWidth*3/4, y: 0),
+                  CGPoint(x: letterWidth*3/4, y: 0), CGPoint(x: 0, y: 0)],
+            "C": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0)],
+            "D": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth*3/4, y: letterHeight),
+                  CGPoint(x: letterWidth*3/4, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight*3/4),
+                  CGPoint(x: letterWidth, y: letterHeight*3/4), CGPoint(x: letterWidth, y: letterHeight/4),
+                  CGPoint(x: letterWidth, y: letterHeight/4), CGPoint(x: letterWidth*3/4, y: 0),
+                  CGPoint(x: letterWidth*3/4, y: 0), CGPoint(x: 0, y: 0)],
+            "E": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth*3/4, y: letterHeight/2)],
+            "F": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth*3/4, y: letterHeight/2)],
+            "G": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight/2),
+                  CGPoint(x: letterWidth, y: letterHeight/2), CGPoint(x: letterWidth/2, y: letterHeight/2)],
+            "H": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight/2)],
+            "I": [CGPoint(x: letterWidth/2, y: 0), CGPoint(x: letterWidth/2, y: letterHeight)],
+            "J": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight/4),
+                  CGPoint(x: letterWidth, y: letterHeight/4), CGPoint(x: letterWidth*3/4, y: 0),
+                  CGPoint(x: letterWidth*3/4, y: 0), CGPoint(x: letterWidth/4, y: 0)],
+            "K": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth, y: 0)],
+            "L": [CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0)],
+            "M": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth/2, y: letterHeight/2),
+                  CGPoint(x: letterWidth/2, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: letterWidth, y: 0)],
+            "N": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight)],
+            "O": [CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0)],
+            "P": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight/2),
+                  CGPoint(x: letterWidth, y: letterHeight/2), CGPoint(x: 0, y: letterHeight/2)],
+            "Q": [CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: letterWidth/2, y: letterHeight/2), CGPoint(x: letterWidth, y: 0)],
+            "R": [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight/2),
+                  CGPoint(x: letterWidth, y: letterHeight/2), CGPoint(x: 0, y: letterHeight/2),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth, y: 0)],
+            "S": [CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: letterHeight/2),
+                  CGPoint(x: 0, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight/2),
+                  CGPoint(x: letterWidth, y: letterHeight/2), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: 0, y: 0)],
+            "T": [CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth/2, y: letterHeight), CGPoint(x: letterWidth/2, y: 0)],
+            "U": [CGPoint(x: 0, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0),
+                  CGPoint(x: letterWidth, y: 0), CGPoint(x: letterWidth, y: letterHeight)],
+            "V": [CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth/2, y: 0),
+                  CGPoint(x: letterWidth/2, y: 0), CGPoint(x: letterWidth, y: letterHeight)],
+            "W": [CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth/4, y: 0),
+                  CGPoint(x: letterWidth/4, y: 0), CGPoint(x: letterWidth/2, y: letterHeight/2),
+                  CGPoint(x: letterWidth/2, y: letterHeight/2), CGPoint(x: letterWidth*3/4, y: 0),
+                  CGPoint(x: letterWidth*3/4, y: 0), CGPoint(x: letterWidth, y: letterHeight)],
+            "X": [CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: 0)],
+            "Y": [CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth/2, y: letterHeight/2),
+                  CGPoint(x: letterWidth/2, y: letterHeight/2), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth/2, y: letterHeight/2), CGPoint(x: letterWidth/2, y: 0)],
+            "Z": [CGPoint(x: 0, y: letterHeight), CGPoint(x: letterWidth, y: letterHeight),
+                  CGPoint(x: letterWidth, y: letterHeight), CGPoint(x: 0, y: 0),
+                  CGPoint(x: 0, y: 0), CGPoint(x: letterWidth, y: 0)],
+            " ": []  // HalfSpace - empty points array
+        ]
+        
+        // Convert text to uppercase and process each character
+        let chars = text.uppercased().map { String($0) }
+        var totalWidth: CGFloat = 0
+        
+        // Calculate total width
+        totalWidth = CGFloat(chars.count) * (letterWidth + letterSpacing) - letterSpacing
+        
+        // Start drawing from the left, accounting for total width
+        var currentX: CGFloat = -totalWidth / 2
+        
+        for char in chars {
+            let charNode = SKNode()
+            
+            if let points = letterPoints[char] {
+                for i in stride(from: 0, to: points.count, by: 2) {
+                    let line = SKShapeNode()
+                    let path = CGMutablePath()
+                    path.move(to: points[i])
+                    path.addLine(to: points[i + 1])
+                    line.path = path
+                    line.strokeColor = .white
+                    line.lineWidth = 2
+                    charNode.addChild(line)
+                }
+            }
+            
+            // Position each character with proper spacing
+            charNode.position = CGPoint(x: currentX, y: 0)
+            letterNode.addChild(charNode)
+            
+            // Move to next character position
+            currentX += letterWidth + letterSpacing
+        }
+        
+        letterNode.position = position
+        return letterNode
     }
 }
