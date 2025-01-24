@@ -2927,6 +2927,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         return numberNode
     }
 
+    // Add this new function for the spacer character (50% width of normal O)
+    private func createLetterSPC(at pos: CGPoint) -> (CGMutablePath, CGPoint) {
+        let path = CGMutablePath()
+        // Create an empty path with O dimensions but 50% width
+        path.move(to: CGPoint(x: -12.5, y: 50))  // Half width of normal O
+        path.addLine(to: CGPoint(x: 12.5, y: 50))
+        return (path, pos)
+    }
+
+    // Update showGameOverScreen function with new spacer
     func showGameOverScreen() {
         // Remove any existing game over screen first
         gameOverScreen?.removeFromParent()
@@ -2934,45 +2944,47 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Create container for all game over lines
         gameOverScreen = SKNode()
         
-        // GAME OVER title letters with adjusted spacing
+        // GAME OVER title letters centered (shifted left)
         let gameOverLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterG(at: CGPoint(x: -200, y: 50)),  // Start further left
-            createLetterA(at: CGPoint(x: -140, y: 50)),  // More space
-            createLetterM(at: CGPoint(x: -80, y: 50)),   // More space
-            createLetterE(at: CGPoint(x: -20, y: 50)),   // More space
-            createLetterO(at: CGPoint(x: 60, y: 50)),    // Double space after E
-            createLetterV(at: CGPoint(x: 120, y: 50)),   // More space
-            createLetterE(at: CGPoint(x: 180, y: 50)),   // More space
-            createLetterR(at: CGPoint(x: 240, y: 50))    // More space
+            createLetterG(at: CGPoint(x: -320, y: 100)),  // Start further left
+            createLetterA(at: CGPoint(x: -240, y: 100)),  // 80 units apart
+            createLetterM(at: CGPoint(x: -160, y: 100)),  // 80 units apart
+            createLetterE(at: CGPoint(x: -80, y: 100)),   // 80 units apart
+            createLetterSPC(at: CGPoint(x: 0, y: 100)),   // Center spacer
+            createLetterO(at: CGPoint(x: 80, y: 100)),    // 80 units apart
+            createLetterV(at: CGPoint(x: 160, y: 100)),   // 80 units apart
+            createLetterE(at: CGPoint(x: 240, y: 100)),   // 80 units apart
+            createLetterR(at: CGPoint(x: 320, y: 100))    // 80 units apart
         ]
         
         // Add GAME OVER letters to the screen
-        for (path, position) in gameOverLetters {
+        for (index, (path, position)) in gameOverLetters.enumerated() {
             let letter = SKShapeNode(path: path)
-            letter.strokeColor = .white
+            letter.strokeColor = index == 4 ? .clear : .white  // Make spacer invisible
             letter.lineWidth = 2.0
             letter.position = position
             gameOverScreen?.addChild(letter)
         }
         
-        // PRESS SPACE letters with adjusted spacing and 50% size
+        // PRESS SPACE letters centered under GAME OVER (shifted 5 pixels right)
         let pressSpaceLetters: [(path: CGMutablePath, position: CGPoint)] = [
-            createLetterP(at: CGPoint(x: -170, y: -50)),
-            createLetterR(at: CGPoint(x: -130, y: -50)),
-            createLetterE(at: CGPoint(x: -90, y: -50)),
-            createLetterS(at: CGPoint(x: -50, y: -50)),
-            createLetterS(at: CGPoint(x: -10, y: -50)),    // Last S in PRESS
-            createLetterS(at: CGPoint(x: 50, y: -50)),    // First S in SPACE (double space gap)
-            createLetterP(at: CGPoint(x: 90, y: -50)),
-            createLetterA(at: CGPoint(x: 130, y: -50)),
-            createLetterC(at: CGPoint(x: 170, y: -50)),
-            createLetterE(at: CGPoint(x: 210, y: -50))
+            createLetterP(at: CGPoint(x: -260, y: -50)),  // +5 from -265
+            createLetterR(at: CGPoint(x: -210, y: -50)),  // +5 from -215
+            createLetterE(at: CGPoint(x: -160, y: -50)),  // +5 from -165
+            createLetterS(at: CGPoint(x: -110, y: -50)),  // +5 from -115
+            createLetterS(at: CGPoint(x: -60, y: -50)),   // +5 from -65
+            createLetterSPC(at: CGPoint(x: -10, y: -50)), // +5 from -15
+            createLetterS(at: CGPoint(x: 40, y: -50)),    // +5 from 35
+            createLetterP(at: CGPoint(x: 90, y: -50)),    // +5 from 85
+            createLetterA(at: CGPoint(x: 140, y: -50)),   // +5 from 135
+            createLetterC(at: CGPoint(x: 190, y: -50)),   // +5 from 185
+            createLetterE(at: CGPoint(x: 240, y: -50))    // +5 from 235
         ]
         
         // Add PRESS SPACE letters to the screen with 50% scale
-        for (path, position) in pressSpaceLetters {
+        for (index, (path, position)) in pressSpaceLetters.enumerated() {
             let letter = SKShapeNode(path: path)
-            letter.strokeColor = .white
+            letter.strokeColor = index == 5 ? .clear : .white  // Make spacer invisible
             letter.lineWidth = 2.0
             letter.position = position
             letter.setScale(0.5)  // Set to 50% size
