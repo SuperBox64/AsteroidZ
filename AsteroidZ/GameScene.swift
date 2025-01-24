@@ -185,6 +185,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private let thrustSoundKey = "thrustSound"  // Unique key for the sound action
     private var thrustSoundNode: SKAudioNode?  // To track and stop the sound
     
+    // Add at top of class
+    private var gameOverScreen: SKNode?  // Track the game over screen node
+    
+    // Add at top of class
+    private var isSpaceKeyDown = false  // Track spacebar state
+    
     // Add this function to GameScene class
     func setupGameController() {
         // Enable game controller support
@@ -800,7 +806,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     override func keyDown(with event: NSEvent) {
         // Check for game over state first
-            if isGameOver {
+        if isGameOver {
             if event.keyCode == 49 || // Spacebar
                event.keyCode == 23 || // 5 key
                event.keyCode == 8 {   // C key
@@ -822,7 +828,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         case 125:     // Down arrow
             thrustDirection = -1.0
         case 49:      // Spacebar
-            fireBullet()
+            if !isSpaceKeyDown {  // Only fire if spacebar wasn't already down
+                isSpaceKeyDown = true
+                fireBullet()
+            }
         default:
             break
         }
@@ -838,6 +847,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             handleRotation()
         case 126, 125:  // Up or Down arrow
             thrustDirection = 0
+        case 49:      // Spacebar
+            isSpaceKeyDown = false  // Reset spacebar state
         default:
             break
         }
@@ -1494,6 +1505,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func restartGame() {
+        // Remove game over screen
+        gameOverScreen?.removeFromParent()
+        gameOverScreen = nil
+        
         // Remove game over messages
         for label in gameOverLabels {
             label.removeFromParent()
@@ -2913,8 +2928,11 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     func showGameOverScreen() {
+        // Remove any existing game over screen first
+        gameOverScreen?.removeFromParent()
+        
         // Create container for all game over lines
-        let gameOverScreen = SKNode()
+        gameOverScreen = SKNode()
         
         // GAME OVER title letters with adjusted spacing
         let gameOverLetters: [(path: CGMutablePath, position: CGPoint)] = [
@@ -2934,7 +2952,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             letter.strokeColor = .white
             letter.lineWidth = 2.0
             letter.position = position
-            gameOverScreen.addChild(letter)
+            gameOverScreen?.addChild(letter)
         }
         
         // PRESS SPACE letters with adjusted spacing and 50% size
@@ -2958,18 +2976,20 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             letter.lineWidth = 2.0
             letter.position = position
             letter.setScale(0.5)  // Set to 50% size
-            gameOverScreen.addChild(letter)
+            gameOverScreen?.addChild(letter)
         }
         
         // Position game over screen
-        gameOverScreen.position = CGPoint(x: frame.midX, y: frame.midY)
-        addChild(gameOverScreen)
+        gameOverScreen?.position = CGPoint(x: frame.midX, y: frame.midY)
+        if let gameOverScreen = gameOverScreen {
+            addChild(gameOverScreen)
+        }
         
         // Blink effect for PRESS SPACE
         let blink = SKAction.sequence([
             SKAction.wait(forDuration: 0.5),
-            SKAction.run { [weak gameOverScreen] in
-                gameOverScreen?.children.forEach { node in
+            SKAction.run { [weak self] in
+                self?.gameOverScreen?.children.forEach { node in
                     if node.position.y < 0 {  // Only affect PRESS SPACE letters
                         node.isHidden.toggle()
                     }
@@ -2977,6 +2997,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         ])
         
-        gameOverScreen.run(SKAction.repeatForever(blink))
+        gameOverScreen?.run(SKAction.repeatForever(blink))
     }
 }
