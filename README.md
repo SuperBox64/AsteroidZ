@@ -4,7 +4,7 @@ Game Designed by SuperBox64, StarplayrX, Todd Bruss (c) 2024.
 Play your favorite Space Rocks Game on the Big Screen!
 Tribute to Atari 1979 game which I first played it at Skateworld in Pewaukee, WI.
 
-Extra ship every 500 pts.. we will probably change this as it's pretty EZ.
+Extra ship every 5000 pts.. we will probably change this as it's pretty EZ.
 
 Controls Briefing:
 

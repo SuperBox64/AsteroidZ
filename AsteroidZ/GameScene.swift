@@ -19,17 +19,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add these new properties
     private var bullets = [SKShapeNode]()
-    private var lastFireTime: TimeInterval = 0
-    private var fireRate: TimeInterval = 0.2 // Minimum time between shots
-    
-    // Add new properties at the top
-    private var scoreLabel: SKLabelNode!
-    private var livesLabel: SKLabelNode!
-    private var highScoreLabel: SKLabelNode!
-    
+        
     // Add these properties at the top of the class
-    private var scoreNodes: [SKShapeNode] = []
-    private var highScoreNodes: [SKShapeNode] = []
     private var livesNodes: [SKShapeNode] = []
     private let extraShipBonus = 5000
     
@@ -63,7 +54,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add new properties
     private var isRespawning = false
-    private var respawnSafeRadius: CGFloat = 100
     
     // Add new property for thrust visual
     private var thrustNode: SKShapeNode?
@@ -90,10 +80,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bangSmallSound: SKAction!
     private var extraShipSound: SKAction!
     private var lastExtraShipScore = 0  // Track when we last gave an extra ship
-    
-    // Add property to track wrapped sprites
-    private var wrappedSprites: [SKNode: SKNode] = [:]
-    
+        
     // Add at top of class
     private let maxAsterVelocity: CGFloat = 300.0  // Maximum speed for Aster type asteroids
     
@@ -104,14 +91,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     private var activeSaucer: SKShapeNode?
     private var saucerSound: SKAudioNode?
-    private var saucerBigSound: SKAction!
-    private var saucerSmallSound: SKAction!
     private var saucerTimer: Timer?
     
     // Add at top of class
     private var saucerShootTimer: Timer?
-    private let largeShootInterval: TimeInterval = 1.5  // Large saucer shoots slower
-    private let smallShootInterval: TimeInterval = 0.8   // Small saucer shoots faster
     
     // Add at top of class
     private var saucerDistanceTraveled: CGFloat = 0
@@ -119,14 +102,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     // Add at top of class
     private let initialAsteroidSpeed: CGFloat = 50.0   // Reduced from 68.75
-    private let maxAsteroidSpeed: CGFloat = 100.0      // Reduced from 206.25
     private var currentAsteroidSpeed: CGFloat = 50.0   // Start at new initial speed
     
     // At top of class
     private var shipThrustSpeed: CGFloat = 15.0  // Reduced by 90% from 150 to 15
-    
-    // At top of class
-    private var thrustSoundAction: SKAction!
     
     // Audio properties
     private var beat1: SKAction!
@@ -135,15 +114,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     private var beatTimer: Timer?
     private var currentBeat = 1
     private var beatInterval: TimeInterval = 1.0
-    private let minBeatInterval: TimeInterval = 0.3
     private let maxBeatInterval: TimeInterval = 1.0
     
     // KEEP only this at class level
     private var reverseFlameNode: SKShapeNode?
-    
-    // At class level, add these properties
-    private var fadeInAction: SKAction!
-    private var throbAction: SKAction!
     
     // Add at top of class
     private var asteroidCountLabel: SKLabelNode!
@@ -164,9 +138,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at class level
     private var level: Int = 1
     
-    // Add at class level
-    private var isFullscreen = true  // Start in fullscreen mode
-    
     // At class level
     private var titleScreen: SKShapeNode?
     
@@ -179,11 +150,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     // Add at top of class
     private var keyboardLeft = false
     private var keyboardRight = false
-    
-    // Add back the thrust sound properties
-    private var thrustSound: SKAction!
-    private let thrustSoundKey = "thrustSound"  // Unique key for the sound action
-    private var thrustSoundNode: SKAudioNode?  // To track and stop the sound
     
     // Add at top of class
     private var gameOverScreen: SKNode?  // Track the game over screen node
@@ -220,13 +186,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         guard let gamepad = controller.extendedGamepad else { return }
         
         // Configure D-pad
-        gamepad.dpad.valueChangedHandler = { [weak self] _, xValue, yValue in
-            self?.handleDirectionalInput(x: xValue, y: yValue)
+        gamepad.dpad.valueChangedHandler = { [weak self] _, xValue, _ in
+            self?.handleDirectionalInput(x: xValue)
         }
         
         // Configure left stick - same controls as D-pad
-        gamepad.leftThumbstick.valueChangedHandler = { [weak self] _, xValue, yValue in 
-            self?.handleDirectionalInput(x: xValue, y: yValue)
+        gamepad.leftThumbstick.valueChangedHandler = { [weak self] _, xValue, _ in
+            self?.handleDirectionalInput(x: xValue)
         }
         
         // A button for firing
@@ -263,10 +229,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
-    private func handleDirectionalInput(x: Float, y: Float) {
-        // Rotation only for left/right (same as keyboard)
-        
-        
+    private func handleDirectionalInput(x: Float) {
         if x == -1 {
             rotationRate = 1.0
         } else if x == 1 {
@@ -274,21 +237,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         } else {
             rotationRate = 0
         }
-        
-
-//        if y == 1 {
-//            thrustDirection = CGFloat(y)
-//            showThrustFlame()
-//        } else if y == -1 {
-//            thrustDirection = CGFloat(y)
-//            showReverseFlame()
-//        } else {
-//            thrustDirection = 0
-//            hideThrustFlame()
-//            hideReverseFlame()
-//        }
-        
-
     }
     
     // Add at top of class
@@ -374,22 +322,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Enable physics world and contact delegate
         physicsWorld.contactDelegate = self
         
-        // // Initialize fade and throb actions with longer durations
-        // fadeInAction = SKAction.fadeIn(withDuration: 1.0)  // Longer fade-in (3 seconds)
-        // throbAction = SKAction.sequence([
-        //     SKAction.group([
-        //         SKAction.repeat(
-        //             SKAction.sequence([
-        //                 SKAction.fadeAlpha(to: 0.5, duration: 0.5),
-        //                 SKAction.scale(to: 0.9, duration: 0.5),      // Start at half size
-        //                 SKAction.scale(to: 1.0, duration: 0.5),  // Scale up over 3 seconds
-        //                 SKAction.fadeAlpha(to: 1.0, duration: 0.5)
-        //             ]),
-        //             count: 1
-        //         )
-        //     ])
-        // ])
-        
         // Create player ship with exact edge physics body
         let path = CGMutablePath()
         path.move(to: CGPoint(x: 0, y: 20))    // Top point
@@ -452,7 +384,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         player.addChild(reverseFlameNode!)
         
   
-        
+    
         // Setup audio actions with proper volume
         beat1 = SKAction.playSoundFileNamed("beat1.wav", waitForCompletion: false)
         beat2 = SKAction.playSoundFileNamed("beat2.wav", waitForCompletion: false)
@@ -461,9 +393,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         bangMediumSound = SKAction.playSoundFileNamed("bangMedium.wav", waitForCompletion: false)
         bangSmallSound = SKAction.playSoundFileNamed("bangSmall.wav", waitForCompletion: false)
         extraShipSound = SKAction.playSoundFileNamed("extraShip.wav", waitForCompletion: false)
-        saucerBigSound = SKAction.playSoundFileNamed("saucerBig.wav", waitForCompletion: false)
-        saucerSmallSound = SKAction.playSoundFileNamed("saucerSmall.wav", waitForCompletion: false)
-        thrustSound = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
+       
         
         // Spawn first saucer immediately
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {  // 5 second initial delay
@@ -473,9 +403,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         // Start regular saucer timer
         startSaucerTimer()
         
-        // Setup thrust sound
-        thrustSoundAction = SKAction.playSoundFileNamed("thrust.wav", waitForCompletion: false)
-      
         // Start background beats immediately after setup
         startBackgroundBeats()
         
@@ -748,17 +675,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         isNextAster.toggle()
         
         return asteroid
-    }
-    
-    // Add helper function to check for overlap
-    func isTooCloseToOtherAsteroids(position: CGPoint, radius: CGFloat, existingPositions: [CGPoint]) -> Bool {
-        for existingPosition in existingPositions {
-            let distance = hypot(position.x - existingPosition.x, position.y - existingPosition.y)
-            if distance < radius * 2 {  // Use diameter for minimum separation
-                return true
-            }
-        }
-        return false
     }
     
     func fireBullet() {
@@ -1227,51 +1143,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         run(SKAction.sequence([wait, remove]))
     }
 
-    
-    // Add new respawn methods
-    func findSafeSpawnLocation() -> CGPoint? {
-        let safeRadius: CGFloat = 100  // Area that needs to be clear
-        let attempts = 20  // Maximum attempts to find safe spot
-        
-        for _ in 0..<attempts {
-            // Try random position
-            let testPoint = CGPoint(
-                x: CGFloat.random(in: safeRadius...(frame.width - safeRadius)),
-                y: CGFloat.random(in: safeRadius...(frame.height - safeRadius))
-            )
-            
-            // Check if area is clear of asteroids and saucers
-            var areaIsSafe = true
-            
-            // Check distance to all asteroids
-            for asteroid in asteroids {
-                let distance = hypot(
-                    asteroid.position.x - testPoint.x,
-                    asteroid.position.y - testPoint.y
-                )
-                if distance < safeRadius {
-                    areaIsSafe = false
-                    break
-                }
-            }
-            
-            // Check distance to saucer if one exists
-            if let saucer = activeSaucer {
-                let distance = hypot(saucer.position.x - testPoint.x,
-                                   saucer.position.y - testPoint.y)
-                if distance < safeRadius {
-                    areaIsSafe = false
-                }
-            }
-            
-            if areaIsSafe {
-                return testPoint
-            }
-        }
-        
-        return nil
-    }
-    
     func tryRespawn() {
         // Create new player ship if needed
         if player == nil {
@@ -1348,81 +1219,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let thrustSound = SKAudioNode(fileNamed: "thrust.wav")
             thrustSound.autoplayLooped = false
             
-            // Set up reversed playback at 50% volume
-            let setupSound = SKAction.group([
-                SKAction.changeVolume(to: 0.5, duration: 0),
-                SKAction.changePlaybackRate(to: -1.0, duration: 0)  // Full reverse
-            ])
-            
-//            let playSoundX = SKAction.sequence([
-//                setupSound,
-//                SKAction.play()
-//            ])
-//            
-//            thrustSound.run(playSound)
-//            addChild(thrustSound)
-            
             // Remove sound after throb finishes
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                 thrustSound.removeFromParent()
             }
-            
-            // Add throb effect
-//            if let currentPlayer = player {
-//                let throb = SKAction.sequence([
-//                    SKAction.fadeAlpha(to: 1.0, duration: 0.2),
-//                    SKAction.fadeAlpha(to: 0.2, duration: 0.2)
-//                ])
-//                
-//                // Create sequence: 3 throbs followed by final fade to full opacity
-//                let throbSequence = SKAction.sequence([
-//                    SKAction.repeat(throb, count: 3),
-//                    SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-//                ])
-//                
-//                currentPlayer.run(throbSequence)
-//            }
         } else {
             // Try again after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                 self?.tryRespawn()
             }
         }
-    }
-    
-    func isCenterAreaSafe() -> Bool {
-        let centerPoint = CGPoint(x: frame.midX, y: frame.midY)
-        
-        for asteroid in asteroids {
-            let distance = hypot(asteroid.position.x - centerPoint.x,
-                               asteroid.position.y - centerPoint.y)
-            if distance < respawnSafeRadius {
-                return false
-            }
-        }
-        return true
-    }
-    
-    func respawnPlayer() {
-        player.position = CGPoint(x: frame.midX, y: frame.midY)
-        player.zRotation = 0
-        velocity = CGVector(dx: 0, dy: 0)
-        player.isHidden = false
-        isRespawning = false
-        
-        // Add invulnerability period
-        player.alpha = 0.5
-        let blinkAction = SKAction.sequence([
-            SKAction.fadeAlpha(to: 0.5, duration: 0.2),
-            SKAction.fadeAlpha(to: 1.0, duration: 0.2)
-        ])
-        let blinkCount = 5
-        player.run(SKAction.sequence([
-            SKAction.repeat(blinkAction, count: blinkCount),
-            SKAction.run { [weak self] in
-                self?.player.alpha = 1.0
-            }
-        ]))
     }
     
     // Add contact delegate method
@@ -1474,13 +1280,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         if (contact.bodyA.categoryBitMask == shipCategory || 
             contact.bodyB.categoryBitMask == shipCategory) {
             if !isRespawning {
-                // Change the fill color of the object that hit the ship to red
-                if let nodeA = contact.bodyA.node as? SKShapeNode {
-                    //nodeA.fillColor = .red
-                }
-                if let nodeB = contact.bodyB.node as? SKShapeNode {
-                    //nodeB.fillColor = .red
-                }
                 playerDied()
             }
         }
@@ -1640,30 +1439,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             asteroid.position.y = -asteroid.frame.height/2
         }
     }
-    
-    func createOrUpdateWrapper(for asteroid: SKShapeNode, at position: CGPoint) {
-        if let existingWrapper = wrappedSprites[asteroid] {
-            // Update existing wrapper position
-            existingWrapper.position = position
-            existingWrapper.zRotation = asteroid.zRotation
-        } else {
-            // Create new wrapper
-            let wrapper = asteroid.copy() as! SKShapeNode
-            wrapper.position = position
-            addChild(wrapper)
-            wrappedSprites[asteroid] = wrapper
-        }
-    }
-    
-    // Clean up wrappers when removing asteroids
-    func removeAsteroid(_ asteroid: SKShapeNode) {
-        if let wrapper = wrappedSprites[asteroid] {
-            wrapper.removeFromParent()
-            wrappedSprites.removeValue(forKey: asteroid)
-        }
-        asteroid.removeFromParent()
-    }
-    
+
     func awardExtraShip() {
         lives += 1
         run(extraShipSound)
@@ -1966,7 +1742,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             showGameOverScreen()
         } else if text.contains("EXTRA") {
             // Create vector text for EXTRA LIVES
-            let messageNode = drawVectorLetter(text, at: CGPoint(x: frame.maxX - 100, y: 50))
+            let messageNode = drawVectorLetter(text, at: CGPoint(x: frame.maxX - 150, y: 50))
             messageNode.alpha = 1.0  
             addChild(messageNode)
             
@@ -1976,14 +1752,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             let remove = SKAction.removeFromParent()
             messageNode.run(SKAction.sequence([wait, fade, remove]))
         }
-    }
-    
-    // Add function to toggle debug info
-    func toggleDebugInfo() {
-        showDebugInfo.toggle()
-        asteroidCountLabel?.isHidden = !showDebugInfo
-        beatIntervalLabel?.isHidden = !showDebugInfo
-        intervalChangedLabel?.isHidden = !showDebugInfo
     }
     
     // Add bullet explosion effect
